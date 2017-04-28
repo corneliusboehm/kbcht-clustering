@@ -76,12 +76,12 @@ def kbcht(km, d):
 
 ############# entry points for the clustering algorithms framework #############
 
-def einfaches_clustering(data, arg1, arg2):
-    # TODO: implement
-    list_of_labels = []
+def einfaches_clustering(data, k):
+    km = kmeans(data, k)
+    list_of_labels = kbcht(km, data)
     return list_of_labels
 
-def tolles_clustering_mit_visualisierung(data, arg1, arg2):
+def tolles_clustering_mit_visualisierung(data, k):
     # TODO: implement
     list_of_labels = []
     list_of_image_filenames = []

@@ -38,7 +38,7 @@ def shrink_vertex(ic, iv):
 def find_sub_clusters(ic, sv):
     sc = []
     s = len(sc)
-    sCaD = 0
+    scad = 0
     # TODO: implement
     return sc, s, scad
 
@@ -62,7 +62,8 @@ def merge_clusters(scs, ss, scads):
     return c
 
 def kbcht(km, d):
-    ics = [] # TODO: split dataset in list of clusters
+    km_clusters = km.predict(d)
+    ics = [d[km_clusters == i] for i in np.unique(km_clusters)]
     
     scs, ss, scads = get_all_subclusters(ics)
     c = merge_clusters(scs, ss, scads)

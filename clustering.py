@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.io.arff import loadarff
+from scipy.spatial import ConvexHull
 from sklearn import metrics
 from sklearn.cluster import KMeans
 
@@ -26,11 +27,16 @@ def kmeans(d, k):
     return km
 
 def convex_hull(ic):
-    iv = []
-    # TODO: implement
-    return iv
+    ch = ConvexHull(ic)
+    hull_indices = ch.vertices
+    inside_indices = list(set(range(0, len(ic))) - set(hull_indices))
+    
+    iv = ic[hull_indices]
+    inside = ic[inside_indices]
+    
+    return iv, inside
 
-def shrink_vertex(ic, iv):
+def shrink_vertex(iv, inside):
     sv = []
     # TODO: implement
     return sv
@@ -43,8 +49,8 @@ def find_sub_clusters(ic, sv):
     return sc, s, scad
 
 def parallel_step(ic):
-    iv = convex_hull(ic)
-    sv = shrink_vertex(ic, iv)
+    iv, inside = convex_hull(ic)
+    sv = shrink_vertex(iv, inside)
     sc, s, scad = find_sub_clusters(ic, sv)
     return sc, s, scad
 

@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull
@@ -16,8 +17,27 @@ def load_data(f):
     
     return d, l
 
+def create_clusters(d, assignments):
+    return [d[assignments == i] for i in np.unique(assignments)]
+
 def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
+
+def visualize(d, ax=None, title=''):
+    if ax is None:
+        # create a new axis if no existing one is provided
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+    
+    ax.set_title(title)
+    
+    if type(d) == np.ndarray:
+        # there is only one cluster -> plot directly
+        ax.plot(d[:,0], d[:,1], '.')
+    else:
+        # there are multiple clusters -> plot each one in a different color
+        for c in d:
+            ax.plot(c[:,0], c[:,1], '.')
 
 
 ############################### KBCHT algorithm ################################
@@ -69,8 +89,7 @@ def merge_clusters(scs, ss, scads):
 
 def kbcht(km, d):
     km_clusters = km.predict(d)
-    ics = [d[km_clusters == i] for i in np.unique(km_clusters)]
-    
+    ics = create_clusters(d, km_clusters)
     scs, ss, scads = get_all_subclusters(ics)
     c = merge_clusters(scs, ss, scads)
     
@@ -95,19 +114,32 @@ def tolles_clustering_mit_visualisierung(data, k):
 
 
 if __name__ == "__main__":
+    fig = plt.figure(figsize=[10, 4])
+    
     print('Load data')
     d, labels_true = load_data('data/1-training.arff')
+    clusters_true = create_clusters(d, labels_true)
+    ax1 = fig.add_subplot(131)
+    visualize(clusters_true, ax1, 'True Classes')
     
     print('Perform k-means clustering')
     km = kmeans(d, 3)
     labels_pred = km.predict(d)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
+    clusters_km = create_clusters(d, labels_pred)
+    ax2 = fig.add_subplot(132)
+    visualize(clusters_km, ax2, 'K-Means Clustering')
     
     print('Perform KBCHT algorithm')
     labels_pred = kbcht(km, d)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
+    clusters_kbcht = create_clusters(d, labels_pred)
+    ax3 = fig.add_subplot(133)
+    visualize(clusters_kbcht, ax3, 'KBCHT Clustering')
     
     print('Done')
+    # show all plots are
+    plt.show()
 

@@ -8,22 +8,22 @@ from sklearn.cluster import KMeans
 
 ############################## utility functions ###############################
 
-def load_data(f):
-    data, meta = loadarff(f)
+def load_data(file):
+    all_data, meta = loadarff(file)
     
     # split data and class attribute
-    d = np.array([e.tolist()[:-1] for e in data])
-    l = np.array([int(e.tolist()[-1]) for e in data])
+    data = np.array([e.tolist()[:-1] for e in all_data])
+    labels = np.array([int(e.tolist()[-1]) for e in all_data])
     
-    return d, l
+    return data, labels
 
-def create_clusters(d, assignments):
-    return [d[assignments == i] for i in np.unique(assignments)]
+def create_clusters(data, assignments):
+    return [data[assignments == i] for i in np.unique(assignments)]
 
 def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
 
-def visualize(d, ax=None, title=''):
+def visualize(data, ax=None, title=''):
     if ax is None:
         # create a new axis if no existing one is provided
         fig = plt.figure()
@@ -31,72 +31,75 @@ def visualize(d, ax=None, title=''):
     
     ax.set_title(title)
     
-    if type(d) == np.ndarray:
+    if type(data) == np.ndarray:
         # there is only one cluster -> plot directly
-        ax.plot(d[:,0], d[:,1], '.')
+        ax.plot(data[:,0], data[:,1], '.')
     else:
         # there are multiple clusters -> plot each one in a different color
-        for c in d:
+        for c in data:
             ax.plot(c[:,0], c[:,1], '.')
 
 
 ############################### KBCHT algorithm ################################
 
-def kmeans(d, k):
-    km = KMeans(n_clusters=k).fit(d)
+def kmeans(data, k):
+    km = KMeans(n_clusters=k).fit(data)
     return km
 
-def convex_hull(ic):
-    ch = ConvexHull(ic)
+def convex_hull(initial_cluster):
+    ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
-    inside_indices = list(set(range(0, len(ic))) - set(hull_indices))
+    inside_indices = list(set(range(0, len(initial_cluster))) - \
+                          set(hull_indices))
     
-    iv = ic[hull_indices]
-    inside = ic[inside_indices]
+    initial_vertex = initial_cluster[hull_indices]
+    inside = initial_cluster[inside_indices]
     
-    return iv, inside
+    return initial_vertex, inside
 
-def shrink_vertex(iv, inside):
-    sv = []
+def shrink_vertex(initial_vertex, inside):
+    shrinked_vertex = []
     # TODO: implement
-    return sv
+    return shrinked_vertex
 
-def find_sub_clusters(ic, sv):
-    sc = []
-    s = len(sc)
-    scad = 0
+def find_sub_clusters(initial_cluster, shrinked_vertex):
+    sub_clusters = []
+    sc_length = len(sub_clusters)
+    sc_average_distance = 0
     # TODO: implement
-    return sc, s, scad
+    return sub_clusters, sc_length, sc_average_distance
 
-def parallel_step(ic):
-    iv, inside = convex_hull(ic)
-    sv = shrink_vertex(iv, inside)
-    sc, s, scad = find_sub_clusters(ic, sv)
-    return sc, s, scad
+def parallel_step(initial_cluster):
+    initial_vertex, inside = convex_hull(initial_cluster)
+    shrinked_vertex = shrink_vertex(initial_vertex, inside)
+    sub_clusters, sc_length, sc_average_distance = \
+        find_sub_clusters(initial_cluster, shrinked_vertex)
+    return sub_clusters, sc_length, sc_average_distance
 
-def get_all_subclusters(ics):
-    ts = [parallel_step(ic) for ic in ics]
-    scs = [t[0] for t in ts]
-    ss = [t[1] for t in ts]
-    scads = [t[2] for t in ts]
+def get_all_subclusters(initial_clusters):
+    sc_tuples = [parallel_step(ic) for ic in initial_clusters]
+    sub_clusters = [t[0] for t in sc_tuples]
+    sc_lengths = [t[1] for t in sc_tuples]
+    sc_average_distances = [t[2] for t in sc_tuples]
     
-    return scs, ss, scads
+    return sub_clusters, sc_lengths, sc_average_distances
 
-def merge_clusters(scs, ss, scads):
-    c = []
+def merge_clusters(sub_clusters, sc_lengths, sc_average_distances):
+    clusters = []
     # TODO: implement
-    return c
+    return clusters
 
-def kbcht(km, d):
-    km_clusters = km.predict(d)
-    ics = create_clusters(d, km_clusters)
-    scs, ss, scads = get_all_subclusters(ics)
-    c = merge_clusters(scs, ss, scads)
+def kbcht(km, data):
+    km_clusters = km.predict(data)
+    initial_clusters = create_clusters(data, km_clusters)
+    sub_clusters, sc_lengths, sc_average_distances = \
+        get_all_subclusters(initial_clusters)
+    clusters = merge_clusters(sub_clusters, sc_lengths, sc_average_distances)
     
     # TODO: This is just for making the process run
-    c = km.predict(d)
+    clusters = km_clusters
     
-    return c
+    return clusters
 
 
 ############# entry points for the clustering algorithms framework #############
@@ -117,25 +120,25 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=[10, 4])
     
     print('Load data')
-    d, labels_true = load_data('data/1-training.arff')
-    clusters_true = create_clusters(d, labels_true)
+    data, labels_true = load_data('data/1-training.arff')
+    clusters_true = create_clusters(data, labels_true)
     ax1 = fig.add_subplot(131)
     visualize(clusters_true, ax1, 'True Classes')
     
     print('Perform k-means clustering')
-    km = kmeans(d, 3)
-    labels_pred = km.predict(d)
+    km = kmeans(data, 3)
+    labels_pred = km.predict(data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
-    clusters_km = create_clusters(d, labels_pred)
+    clusters_km = create_clusters(data, labels_pred)
     ax2 = fig.add_subplot(132)
     visualize(clusters_km, ax2, 'K-Means Clustering')
     
     print('Perform KBCHT algorithm')
-    labels_pred = kbcht(km, d)
+    labels_pred = kbcht(km, data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
-    clusters_kbcht = create_clusters(d, labels_pred)
+    clusters_kbcht = create_clusters(data, labels_pred)
     ax3 = fig.add_subplot(133)
     visualize(clusters_kbcht, ax3, 'KBCHT Clustering')
     

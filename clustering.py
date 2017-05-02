@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io.arff import loadarff
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, Delaunay
+from scipy.spatial.distance import euclidean
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import sys
@@ -59,7 +60,65 @@ def convex_hull(initial_cluster):
     return initial_vertex, inside
 
 def shrink_vertex(initial_vertex, inside):
-    shrinked_vertex = []
+
+    # max edge length in convex hull
+    edge_lengths = [euclidean(v[0], v[1]) for v in 
+        zip(initial_vertex, initial_vertex[1:] + [initial_vertex[0]])
+    ]
+    max_edge_idx = np.argmax(edge_lengths)
+    max_edge_length = np.max(edge_lengths)
+    #return edge_lengths.index(max_edge_length), max_edge_dist
+
+    # avg edge length in inner points (via delaunay triangulation)
+    dt = Delaunay(inside)
+
+    # get all edges in the triangulation
+    edges = set()
+    vnv = dt.vertex_neighbor_vertices
+    for vi in range(len(vnv[0])-1):
+        # for each vertex in the triangulation get its neighbors
+        nvis = vnv[1][vnv[0][vi]:vnv[0][vi+1]]
+        # create tuples with neighbors
+        for nvi in nvis:
+            # add edge to set
+            edges.add((vi,nvi))
+    # compute distances and return average distance
+    edge_lengths = [euclidean(dt.points[v[0]], dt.points[v[1]]) for v in edges]
+    avg_edge_length = np.mean(edge_lengths)
+
+    if max_edge_length < avg_edge_length:
+        # ignore current hull, compute new one from remaining points
+        return shrink_vertex(convex_hull(inside))
+
+    # shift convex hull to have the longest edge at the beginning
+    # the scipy implementation puts vertices already in counterclockwise order
+    initial_vertex = np.roll(initial_vertex, max_edge_idx)
+
+    # shrinking
+    V1 = initial_vertex[0]
+    V2 = initial_vertex[1]
+    while max_edge_length >= avg_edge_length or TODO:
+        
+        candidates = []
+        for P in inside:
+            # find closest point from x to the line between V1 and V2:
+            # 1) its projection falls between V1 and V2
+            # 2) it resides on the left of V1 and V2
+            # 3) the perpendicular line from P to the line between V1 and V2 doesn't
+            # have an intersection with other edgtes between vertices
+
+            # P = V1 + u*(V2-V1)
+            V12 = V2-V1
+            u = np.dot(P-V1,V12) / np.dot(V12,V12)
+            if not (0 <= u <= 1):
+                # 1) failed
+                continue
+            print(u)
+
+        import sys
+        sys.exit(0)
+    sv = []
+
     # TODO: implement
     return shrinked_vertex
 

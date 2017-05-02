@@ -4,6 +4,7 @@ from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull
 from sklearn import metrics
 from sklearn.cluster import KMeans
+import sys
 
 
 ############################## utility functions ###############################
@@ -117,10 +118,15 @@ def tolles_clustering_mit_visualisierung(data, k):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        file = sys.argv[1]
+    else:
+        file = 'data/Iris.arff'
+
     fig = plt.figure(figsize=[10, 4])
     
     print('Load data')
-    data, labels_true = load_data('data/1-training.arff')
+    data, labels_true = load_data(file)
     clusters_true = create_clusters(data, labels_true)
     ax1 = fig.add_subplot(131)
     visualize(clusters_true, ax1, 'True Classes')
@@ -143,6 +149,6 @@ if __name__ == "__main__":
     visualize(clusters_kbcht, ax3, 'KBCHT Clustering')
     
     print('Done')
-    # show all plots are
+    # show all plots
     plt.show()
 

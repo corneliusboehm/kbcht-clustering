@@ -42,6 +42,20 @@ def visualize(data, ax=None, title=''):
         for c in data:
             ax.plot(c[:,0], c[:,1], '.')
 
+def visualize_vertex(vertex, inside, ax=None, title=''):
+    if ax is None:
+        # create a new axis if no existing one is provided
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+    
+    ax.set_title(title)
+
+    # plot hull vertex connected by lines
+    ax.plot(vertex[:,0], vertex[:,1], 'x-')
+
+    # plot points inside
+    ax.plot(inside[:,0], inside[:,1], '.')
+
 
 ############################### KBCHT algorithm ################################
 
@@ -61,6 +75,8 @@ def convex_hull(initial_cluster):
     return initial_vertex, inside
 
 def average_distance(cluster):
+    # TODO: maybe check if the cluster is empty
+
     # calculate avg edge length in inner points (via delaunay triangulation)
     dt = Delaunay(cluster)
 
@@ -158,7 +174,7 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
                 if diff == 0:
                     cluster_indices[range(i, j+1)] = cluster_idx
                     cluster_idx += 1
-    
+
     # get points inside of subclusters
     sub_clusters = [points_within(inside_shrinked, 
                                   shrinked_vertex[cluster_indices == i]) 

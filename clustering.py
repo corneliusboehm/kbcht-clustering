@@ -100,7 +100,8 @@ def average_distance(cluster):
 def shrink_vertex(initial_vertex, inside):
     # max edge length in convex hull
     edge_lengths = [euclidean(v[0], v[1]) for v in 
-        zip(initial_vertex, initial_vertex[1:] + [initial_vertex[0]])
+        zip(initial_vertex, 
+            np.append(initial_vertex[1:], [initial_vertex[0]], axis=0))
     ]
     max_edge_idx = np.argmax(edge_lengths)
     max_edge_length = np.max(edge_lengths)
@@ -110,11 +111,12 @@ def shrink_vertex(initial_vertex, inside):
 
     if max_edge_length < avg_edge_length:
         # ignore current hull, compute new one from remaining points
+        # TODO: what about the previous hull?
         return shrink_vertex(convex_hull(inside))
 
     # shift convex hull to have the longest edge at the beginning
     # the scipy implementation puts vertices already in counterclockwise order
-    initial_vertex = np.roll(initial_vertex, max_edge_idx)
+    initial_vertex = np.roll(initial_vertex, -max_edge_idx, axis=0)
 
     # shrinking
     V1 = initial_vertex[0]

@@ -71,6 +71,8 @@ def convex_hull(initial_cluster):
     
     initial_vertex = initial_cluster[hull_indices]
     inside = initial_cluster[inside_indices]
+
+    # TODO: always add first node to the end?
     
     return initial_vertex, inside
 
@@ -184,9 +186,9 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
     # TODO: add vertex points to subcluster?
 
     # calculate average distance for each subcluster
-    sc_average_distance = [average_distance(sc) for sc in sub_clusters]
+    sc_average_distances = [average_distance(sc) for sc in sub_clusters]
     
-    return sub_clusters, cluster_idx-1, sc_average_distance
+    return sub_clusters, cluster_idx-1, sc_average_distances
 
 def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
@@ -197,11 +199,12 @@ def parallel_step(initial_cluster):
 
 def get_all_subclusters(initial_clusters):
     sc_tuples = [parallel_step(ic) for ic in initial_clusters]
-    sub_clusters = [t[0] for t in sc_tuples]
-    sc_lengths = [t[1] for t in sc_tuples]
-    sc_average_distances = [t[2] for t in sc_tuples]
+    sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
+    sc_length = sum([t[1] for t in sc_tuples])
+    sc_average_distances = [average_distance for t in sc_tuples 
+                                             for average_distance in t[2]]
     
-    return sub_clusters, sc_lengths, sc_average_distances
+    return sub_clusters, sc_length, sc_average_distances
 
 def merge_clusters(sub_clusters, sc_lengths, sc_average_distances):
     clusters = []
@@ -211,9 +214,9 @@ def merge_clusters(sub_clusters, sc_lengths, sc_average_distances):
 def kbcht(km, data):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
-    sub_clusters, sc_lengths, sc_average_distances = \
+    sub_clusters, sc_length, sc_average_distances = \
         get_all_subclusters(initial_clusters)
-    clusters = merge_clusters(sub_clusters, sc_lengths, sc_average_distances)
+    clusters = merge_clusters(sub_clusters, sc_length, sc_average_distances)
     
     # TODO: This is just for making the process run
     clusters = km_clusters

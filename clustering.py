@@ -237,52 +237,50 @@ def get_all_subclusters(initial_clusters):
     return sub_clusters, sc_average_distances
 
 def cluster_distance(c1, c2):
-    # TODO: maybe cache distances?
     # calculate minimum pairwise distance between the two clusters
     return np.min(cdist(c1, c2))
 
 def merge_clusters(sub_clusters, sc_average_distances):
     nsc = len(sub_clusters)
 
-    if nsc > 0:
-        # create initial cluster from first subcluster
-        clusters = [sub_clusters[0]]
-        average_distances = [sc_average_distances[0]]
-        processed_indices = {0}
-    else:
+    if nsc == 0:
         return []
 
-    jmin = 1
-    j = 1
+    # calculate minimal distances between all subclusters
+    sc_dists = np.zeros([nsc, nsc])
+    for i in range(nsc):
+        for j in range(i+1, nsc):
+            sc_dists[i,j] = cluster_distance(sub_clusters[i], sub_clusters[j])
+            sc_dists[j,i] = sc_dists[i,j]
+
+    # create initial cluster from first subcluster
+    clusters = [sub_clusters[0]]
+    processed_indices = {0}
+    average_distances = [sc_average_distances[0]]
+    c_dists = np.array([sc_dists[0]])
+
+    # merge clusters until all subclusters have been processed
     while len(processed_indices) < nsc:
-        while j < nsc:
-            if not j in processed_indices:
-                d = cluster_distance(clusters[-1], sub_clusters[j])
-                if d < average_distances[-1]:
-                    # merge clusters
-                    clusters[-1] = np.append(clusters[-1], sub_clusters[j], 
-                                             axis=0)
-                    processed_indices.add(j)
-                    average_distances[-1] = average_distance(clusters[-1])
+        # add subclusters to current cluster as long as they are close enough
+        change = True
+        while change:
+            change = False
+            merge_indices, = np.where(c_dists[-1] < average_distances[-1])
+            for j in set(merge_indices) - processed_indices:
+                change = True
+                clusters[-1] = np.append(clusters[-1], sub_clusters[j], axis=0)
+                processed_indices.add(j)
+            if change:
+                average_distances[-1] = average_distance(clusters[-1])
+                c_dists[-1] = np.min(sc_dists[merge_indices], axis=0)
 
-                    # jump back to first unprocessed index
-                    jmin = min(set(range(nsc+1)) - processed_indices)
-                    j = jmin
-                else:
-                    j += 1
-            else:
-                # cluster has already been processed
-                j += 1
-
+        jmin = min(set(range(nsc+1)) - processed_indices)
         if jmin < nsc:
             # create new cluster from the first unprocessed subcluster
             clusters.append(sub_clusters[jmin])
             processed_indices.add(jmin)
             average_distances.append(sc_average_distances[jmin])
-
-            # jump to first unprocessed index
-            jmin = min(set(range(nsc+1)) - processed_indices)
-            j = jmin
+            c_dists = np.append(c_dists, [sc_dists[jmin]], axis=0)
 
     # TODO: what about released points?
 

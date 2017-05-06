@@ -3,7 +3,7 @@ from matplotlib.path import Path
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
-from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import euclidean, cdist
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import sys
@@ -22,6 +22,19 @@ def load_data(file):
 
 def create_clusters(data, assignments):
     return [data[assignments == i] for i in np.unique(assignments)]
+
+def create_assignments(orig_data, clusters):
+    # TODO: there should be a more efficient/pythonic way
+    assignments = []
+
+    for d in orig_data:
+        for c in range(len(clusters)):
+            if np.any(np.all(clusters[c] == d, axis=1)):
+                # this is the first cluster that contains the data point
+                assignments.append(c)
+                break
+
+    return assignments
 
 def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
@@ -66,7 +79,7 @@ def kmeans(data, k):
 def convex_hull(initial_cluster):
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
-    inside_indices = list(set(range(0, len(initial_cluster))) - \
+    inside_indices = list(set(range(len(initial_cluster))) - \
                           set(hull_indices))
     
     initial_vertex = initial_cluster[hull_indices]
@@ -179,49 +192,96 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
                     cluster_indices[range(i, j+1)] = cluster_idx
                     cluster_idx += 1
 
-    # get points inside of subclusters
-    sub_clusters = [points_within(inside_shrinked, 
-                                  shrinked_vertex[cluster_indices == i]) 
-                    for i in range(1, cluster_idx)]
-    # TODO: add vertex points to subcluster?
+    # form subclusters from grouped vertices and points inside them
+    sub_clusters = [
+        np.append(points_within(inside_shrinked, 
+                                shrinked_vertex[cluster_indices == i]),
+                  shrinked_vertex[cluster_indices == i], 
+                  axis=0) 
+        for i in range(1, cluster_idx)
+    ]
 
     # calculate average distance for each subcluster
     sc_average_distances = [average_distance(sc) for sc in sub_clusters]
     
-    return sub_clusters, cluster_idx-1, sc_average_distances
+    return sub_clusters, sc_average_distances
 
 def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
     shrinked_vertex, inside_shrinked = shrink_vertex(initial_vertex, inside)
-    sub_clusters, sc_length, sc_average_distance = \
+    sub_clusters, sc_average_distances = \
         find_sub_clusters(shrinked_vertex, inside_shrinked)
-    return sub_clusters, sc_length, sc_average_distance
+    return sub_clusters, sc_average_distances
 
 def get_all_subclusters(initial_clusters):
     sc_tuples = [parallel_step(ic) for ic in initial_clusters]
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
-    sc_length = sum([t[1] for t in sc_tuples])
     sc_average_distances = [average_distance for t in sc_tuples 
-                                             for average_distance in t[2]]
+                                             for average_distance in t[1]]
     
-    return sub_clusters, sc_length, sc_average_distances
+    return sub_clusters, sc_average_distances
 
-def merge_clusters(sub_clusters, sc_lengths, sc_average_distances):
-    clusters = []
-    # TODO: implement
+def cluster_distance(c1, c2):
+    # TODO: maybe cache distances?
+    # calculate minimum pairwise distance between the two clusters
+    return np.min(cdist(c1, c2))
+
+def merge_clusters(sub_clusters, sc_average_distances):
+    nsc = len(sub_clusters)
+
+    if nsc > 0:
+        # create initial cluster from first subcluster
+        clusters = [sub_clusters[0]]
+        average_distances = [sc_average_distances[0]]
+        processed_indices = {0}
+    else:
+        return []
+
+    jmin = 1
+    j = 1
+    while len(processed_indices) < nsc:
+        while j < nsc:
+            if not j in processed_indices:
+                d = cluster_distance(clusters[-1], sub_clusters[j])
+                if d < average_distances[-1]:
+                    # merge clusters
+                    clusters[-1] = np.append(clusters[-1], sub_clusters[j], 
+                                             axis=0)
+                    processed_indices.add(j)
+                    average_distances[-1] = average_distance(clusters[-1])
+
+                    # jump back to first unprocessed index
+                    jmin = min(set(range(nsc+1)) - processed_indices)
+                    j = jmin
+                else:
+                    j += 1
+            else:
+                # cluster has already been processed
+                j += 1
+
+        if jmin < nsc:
+            # create new cluster from the first unprocessed subcluster
+            clusters.append(sub_clusters[jmin])
+            processed_indices.add(jmin)
+            average_distances.append(sc_average_distances[jmin])
+
+            # jump to first unprocessed index
+            jmin = min(set(range(nsc+1)) - processed_indices)
+            j = jmin
+
     return clusters
 
 def kbcht(km, data):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
-    sub_clusters, sc_length, sc_average_distances = \
+    sub_clusters, sc_average_distances = \
         get_all_subclusters(initial_clusters)
-    clusters = merge_clusters(sub_clusters, sc_length, sc_average_distances)
+    clusters = merge_clusters(sub_clusters, sc_average_distances)
     
-    # TODO: This is just for making the process run
-    clusters = km_clusters
+    # recreate cluster assignments for points in original data set
+    assignments = create_assignments(data, clusters)
     
-    return clusters
+    return assignments
 
 
 ############# entry points for the clustering algorithms framework #############

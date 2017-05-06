@@ -239,10 +239,31 @@ def tolles_clustering_mit_visualisierung(data, k):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        file = sys.argv[1]
+    '''
+    Usage: python3 clustering.py [K] [FILE]
+               K    - Number of clusters for k-means
+               FILE - Input file
+    '''
+    l = len(sys.argv)
+    if l == 1:
+        k = 2
+        file = 'data/c_Moons1.arff'
+    elif l == 2:
+        try:
+            k = int(sys.argv[1])
+            file = 'data/c_Moons1.arff'
+        except ValueError:
+            k = 2
+            file = sys.argv[1]
     else:
-        file = 'data/Iris.arff'
+        try:
+            k = int(sys.argv[1])
+            file = sys.argv[2]
+        except ValueError:
+            print('Usage: python3 clustering.py [K] [FILE]\n',
+                  '           K    - Number of clusters for k-means\n',
+                  '           FILE - Input file')
+            sys.exit(0)
 
     fig = plt.figure(figsize=[10, 4])
     
@@ -253,7 +274,7 @@ if __name__ == "__main__":
     visualize(clusters_true, ax1, 'True Classes')
     
     print('Perform k-means clustering')
-    km = kmeans(data, 3)
+    km = kmeans(data, k)
     labels_pred = km.predict(data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))

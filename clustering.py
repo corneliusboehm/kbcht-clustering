@@ -3,7 +3,7 @@ from matplotlib.path import Path
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
-from scipy.spatial.distance import euclidean, cdist
+from scipy.spatial.distance import euclidean, cdist, pdist
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import sys
@@ -77,6 +77,9 @@ def kmeans(data, k):
     return km
 
 def convex_hull(initial_cluster):
+    if len(initial_cluster) < 3:
+        return initial_cluster, np.array([])
+
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
     inside_indices = list(set(range(len(initial_cluster))) - \
@@ -90,7 +93,11 @@ def convex_hull(initial_cluster):
     return initial_vertex, inside
 
 def average_distance(cluster):
-    # TODO: maybe check if the cluster is empty
+    if len(cluster) <= 1:
+        return 0
+    if len(cluster) < 4:
+        # less than 4 points -> calculate mean distance directly
+        return np.mean(pdist(cluster))
 
     # calculate avg edge length in inner points (via delaunay triangulation)
     dt = Delaunay(cluster)
@@ -127,7 +134,8 @@ def shrink_vertex(initial_vertex, inside):
     if max_edge_length < avg_edge_length:
         # ignore current hull, compute new one from remaining points
         # TODO: what about the previous hull?
-        return shrink_vertex(convex_hull(inside))
+        new_vertex, new_inside = convex_hull(inside)
+        return shrink_vertex(new_vertex, new_inside)
 
     # shift convex hull to have the longest edge at the beginning
     # the scipy implementation puts vertices already in counterclockwise order
@@ -166,9 +174,12 @@ def shrink_vertex(initial_vertex, inside):
     return shrinked_vertex, inside_shrinked
 
 def points_within(points, vertex):
-    if len(points.shape) > 1 and points.shape[1] > 2:
+    if points.shape[-1] > 2:
         print('ERROR: Points within can only be found for 2D polygons.')
-        return []
+        sys.exit(0)
+
+    if len(points) == 0:
+        return np.array([])
 
     p = Path(vertex)
     return points[p.contains_points(points)]
@@ -193,13 +204,17 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
                     cluster_idx += 1
 
     # form subclusters from grouped vertices and points inside them
-    sub_clusters = [
-        np.append(points_within(inside_shrinked, 
-                                shrinked_vertex[cluster_indices == i]),
-                  shrinked_vertex[cluster_indices == i], 
-                  axis=0) 
-        for i in range(1, cluster_idx)
-    ]
+    sub_clusters = []
+    for i in range(1, cluster_idx):
+        sc_vertices = shrinked_vertex[cluster_indices == i]
+        sc_within = points_within(inside_shrinked, sc_vertices)
+
+        if len(sc_within) > 0:
+            sc = np.append(sc_vertices, sc_within, axis=0)
+        else:
+            sc = sc_vertices
+
+        sub_clusters.append(sc)
 
     # calculate average distance for each subcluster
     sc_average_distances = [average_distance(sc) for sc in sub_clusters]
@@ -268,6 +283,8 @@ def merge_clusters(sub_clusters, sc_average_distances):
             # jump to first unprocessed index
             jmin = min(set(range(nsc+1)) - processed_indices)
             j = jmin
+
+    # TODO: what about released points?
 
     return clusters
 

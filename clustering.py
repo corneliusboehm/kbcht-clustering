@@ -144,7 +144,7 @@ def shrink_vertex(initial_vertex, inside):
     # shrinking
     V1 = initial_vertex[0]
     V2 = initial_vertex[1]
-    ''' WIP
+    
     while max_edge_length >= avg_edge_length or TODO:
         
         candidates = []
@@ -153,7 +153,7 @@ def shrink_vertex(initial_vertex, inside):
             # 1) its projection falls between V1 and V2
             # 2) it resides on the left of V1 and V2
             # 3) the perpendicular line from P to the line between V1 and V2 doesn't
-            # have an intersection with other edgtes between vertices
+            # have an intersection with other edges between vertices
 
             # P = V1 + u*(V2-V1)
             V12 = V2-V1
@@ -161,11 +161,13 @@ def shrink_vertex(initial_vertex, inside):
             if not (0 <= u <= 1):
                 # 1) failed
                 continue
-            print(u)
 
-        import sys
-        sys.exit(0)
-    '''
+            M = np.array([V1, V2, P, [1]*len(P)]).T
+            if np.linalg.det(M) <= 0:
+                # 2) failed
+                continue
+
+        sys.exit()
 
     # for testing only
     shrinked_vertex = initial_vertex

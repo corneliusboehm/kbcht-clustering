@@ -170,8 +170,9 @@ def shrink_vertex(initial_vertex, inside):
     # for testing only
     shrinked_vertex = initial_vertex
     inside_shrinked = inside
+    released = []
 
-    return shrinked_vertex, inside_shrinked
+    return shrinked_vertex, inside_shrinked, released
 
 def points_within(points, vertex):
     if points.shape[-1] > 2:
@@ -223,18 +224,23 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
 
 def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
-    shrinked_vertex, inside_shrinked = shrink_vertex(initial_vertex, inside)
+
+    shrinked_vertex, inside_shrinked, released = \
+        shrink_vertex(initial_vertex, inside)
+
     sub_clusters, sc_average_distances = \
         find_sub_clusters(shrinked_vertex, inside_shrinked)
-    return sub_clusters, sc_average_distances
+
+    return sub_clusters, sc_average_distances, released
 
 def get_all_subclusters(initial_clusters):
     sc_tuples = [parallel_step(ic) for ic in initial_clusters]
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
     sc_average_distances = [average_distance for t in sc_tuples 
                                              for average_distance in t[1]]
+    released = [r for t in sc_tuples for r in t[2]]
     
-    return sub_clusters, sc_average_distances
+    return sub_clusters, sc_average_distances, released
 
 def cluster_distance(c1, c2):
     # calculate minimum pairwise distance between the two clusters
@@ -282,16 +288,40 @@ def merge_clusters(sub_clusters, sc_average_distances):
             average_distances.append(sc_average_distances[jmin])
             c_dists = np.append(c_dists, [sc_dists[jmin]], axis=0)
 
-    # TODO: what about released points?
+    return clusters, average_distances
+
+def add_released(clusters, average_distances, released):
+    noise = None
+    
+    for p in released:
+        added = False
+        for i, c in enumerate(clusters):
+            if cluster_distance(c, [p]) < average_distances[i]:
+                clusters[i] = np.append(c, [p], axis=0)
+                added = True
+                break
+        if not added:
+            if noise is None:
+                noise = np.array([p])
+            else:
+                noise = np.append(noise, [p], axis=0)
+
+    if not noise is None:
+        clusters.append(noise)
 
     return clusters
 
 def kbcht(km, data):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
-    sub_clusters, sc_average_distances = \
+
+    sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
-    clusters = merge_clusters(sub_clusters, sc_average_distances)
+
+    clusters, average_distances = \
+        merge_clusters(sub_clusters, sc_average_distances)
+
+    clusters = add_released(clusters, average_distances, released)
     
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)

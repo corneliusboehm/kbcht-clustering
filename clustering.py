@@ -69,6 +69,24 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
     # plot points inside
     ax.plot(inside[:,0], inside[:,1], '.')
 
+def perp( a ) :
+    b = np.empty_like(a)
+    b[0] = -a[1]
+    b[1] = a[0]
+    return b
+
+def seg_intersect(a1,a2, b1,b2) :
+    da = a2-a1
+    db = b2-b1
+    dp = a1-b1
+    dap = perp(da)
+    denom = np.dot(dap, db)
+    if not denom.any():
+        # parallel segments
+        return 0, True
+    num = np.dot(dap, dp)
+    return (num / denom.astype(float))*db + b1, False
+
 
 ############################### KBCHT algorithm ################################
 
@@ -119,34 +137,54 @@ def average_distance(cluster):
 
     return avg_edge_length
 
-def shrink_vertex(initial_vertex, inside):
+def sort_hull(vertices):
     # max edge length in convex hull
     edge_lengths = [euclidean(v[0], v[1]) for v in 
-        zip(initial_vertex, 
-            np.append(initial_vertex[1:], [initial_vertex[0]], axis=0))
+        zip(vertices.vertex, 
+            np.append(vertices.vertex[1:], [vertices.vertex[0]], axis=0))
     ]
-    max_edge_idx = np.argmax(edge_lengths)
-    max_edge_length = np.max(edge_lengths)
-    #return edge_lengths.index(max_edge_length), max_edge_dist
 
+    # indices of by-length sorted array
+    by_length = np.argsort(edge_lengths)[::-1]
+    max_edge_length = edge_lengths[by_length[0]]
+    # sort vertices
+    vertices_by_length = vertices[by_length]
+    # get longest edge that is not processed
+    max_vertex = next(v for v in vertices_by_length if v.is_processed == False)
+    max_vertex_idx = np.where(vertices == max_vertex)[0][0]
+
+    # shift convex hull to have the longest edge at the beginning
+    vertices = np.roll(vertices, -max_vertex_idx, axis=0)
+
+    return vertices, max_edge_length
+
+def shrink_vertex(hull_vertices, inside):
+
+    # add processed status information
+    dt = np.dtype([('vertex', np.float64, (2,)), ('is_processed', bool)])
+    hull_vertices = np.rec.array([(v, False) for v in hull_vertices], dtype = dt)
+
+    hull_vertices, max_edge_length = sort_hull(hull_vertices)
     avg_edge_length = average_distance(inside)
 
     if max_edge_length < avg_edge_length:
         # ignore current hull, compute new one from remaining points
         # TODO: what about the previous hull?
-        new_vertex, new_inside = convex_hull(inside)
-        return shrink_vertex(new_vertex, new_inside)
+        new_hull, new_inside = convex_hull(inside)
+        return shrink_vertex(new_hull, new_inside)
 
-    # shift convex hull to have the longest edge at the beginning
-    # the scipy implementation puts vertices already in counterclockwise order
-    initial_vertex = np.roll(initial_vertex, -max_edge_idx, axis=0)
+    foo = 0
+    while max_edge_length >= avg_edge_length and foo < 25:
+        # shrinking
+        V1 = hull_vertices[0].vertex
+        V2 = hull_vertices[1].vertex
+        V21 = V2 - V1
+        V21dot = np.dot(V21, V21)
 
-    # shrinking
-    V1 = initial_vertex[0]
-    V2 = initial_vertex[1]
-    
-    while max_edge_length >= avg_edge_length or TODO:
-        
+        edges = list(
+            zip(hull_vertices.vertex,
+                np.append(hull_vertices.vertex[1:], [hull_vertices.vertex[0]], axis=0)))
+
         candidates = []
         for P in inside:
             # find closest point from x to the line between V1 and V2:
@@ -155,22 +193,74 @@ def shrink_vertex(initial_vertex, inside):
             # 3) the perpendicular line from P to the line between V1 and V2 doesn't
             # have an intersection with other edges between vertices
 
-            # P = V1 + u*(V2-V1)
-            V12 = V2-V1
-            u = np.dot(P-V1,V12) / np.dot(V12,V12)
+            PV1 = P - V1
+            u = np.dot(PV1, V21) / V21dot
+
             if not (0 <= u <= 1):
                 # 1) failed
                 continue
 
-            M = np.array([V1, V2, P, [1]*len(P)]).T
-            if np.linalg.det(M) <= 0:
+            # NOTE: this only works for 2D
+            M = np.vstack((np.array([V1, V2, P]).T,[1,1,1]))
+            if np.linalg.det(M) <= 0.00001: # allow some rounding error
                 # 2) failed
                 continue
 
-        sys.exit()
+            # get projected point
+            PP = V1 + u*V21
+            PPP = P - PP
+
+            for i, edge in enumerate(edges):
+
+                intersection, err = seg_intersect(P, PPP, edge[0], edge[1])
+                if err:
+                    # parallel segments -> not intersecting
+                    candidates.append((P, np.linalg.norm(PPP)))
+
+                if not (0 <= 
+                    np.dot(edge[1] - edge[0], intersection - edge[0]) <= 
+                    np.linalg.norm(edge[1] - edge[0]) ** 2):
+                    # intersection not within segment
+                    candidates.append((P, np.linalg.norm(PPP)))
+
+                # we found an intersection. These are only allowed if the
+                # candidate vertex is either the V_last or V3...
+                _last = -1 if i == 0 else i-1
+                _next = 0 if i == len(edges)-1 else i+1
+                if np.array_equal(P, edges[_last]) or np.array_equal(P, edges[_next]):
+                    candidates.append((P, np.linalg.norm(PPP)))
+
+                # ... or the intersection is at V1 or V2
+                if np.array_equal(intersection, V1) or np.array_equal(intersection, V2):
+                    candidates.append((P, np.linalg.norm(PPP)))
+
+        if len(candidates) == 0:
+            # no candidate for shrinking found
+            hull_vertices[0].is_processed = True
+
+            if all(hull_vertices.is_processed):
+                # finished search
+                break
+
+            continue
+
+        # add closest point to hull between V1 and V2
+        Q = min(candidates, key = lambda t: t[1])[0]
+        hull_vertices = np.insert(hull_vertices, 1, (Q, False), axis=0)
+
+        # TODO release vertices
+
+        hull_vertices, max_edge_length = sort_hull(hull_vertices)
+        #if foo % 10 == 0:
+        #    visualize_vertex(np.array(hull_vertices.vertex).astype(float), inside)
+        #    plt.plot([V1[0], V2[0]], [V1[1], V2[1]], color='green')
+        #    plt.plot([V1[0], Q[0]], [V1[1], Q[1]], color='red')
+        #    plt.plot([Q[0], V2[0]], [Q[1], V2[1]], color='red')
+        #    plt.show()
+        foo = foo + 1
 
     # for testing only
-    shrinked_vertex = initial_vertex
+    shrinked_vertex = hull_vertices.vertex
     inside_shrinked = inside
     released = []
 

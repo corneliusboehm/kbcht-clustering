@@ -300,14 +300,16 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
     sub_clusters = []
     for i in range(1, cluster_idx):
         sc_vertices = shrinked_vertex[cluster_indices == i]
-        sc_within = points_within(inside_shrinked, sc_vertices)
 
-        if len(sc_within) > 0:
-            sc = np.append(sc_vertices, sc_within, axis=0)
-        else:
-            sc = sc_vertices
+        if len(sc_vertices) > 0:
+            sc_within = points_within(inside_shrinked, sc_vertices)
 
-        sub_clusters.append(sc)
+            if len(sc_within) > 0:
+                sc = np.append(sc_vertices, sc_within, axis=0)
+            else:
+                sc = sc_vertices
+
+            sub_clusters.append(sc)
 
     # calculate average distance for each subcluster
     sc_average_distances = [average_distance(sc) for sc in sub_clusters]

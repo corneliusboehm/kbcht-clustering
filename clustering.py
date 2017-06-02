@@ -179,7 +179,7 @@ def shrink_vertex(hull_vertices, inside):
         return shrink_vertex(new_hull, new_inside)
 
     foo = 0
-    while max_edge_length >= avg_edge_length and foo < 25:
+    while max_edge_length >= avg_edge_length:
         # shrinking
         V1 = hull_vertices[0].vertex
         V2 = hull_vertices[1].vertex
@@ -256,20 +256,13 @@ def shrink_vertex(hull_vertices, inside):
         # TODO release vertices
 
         hull_vertices, max_edge_length = sort_hull(hull_vertices)
-        #if foo % 10 == 0:
-        #    visualize_vertex(np.array(hull_vertices.vertex).astype(float), inside)
-        #    plt.plot([V1[0], V2[0]], [V1[1], V2[1]], color='green')
-        #    plt.plot([V1[0], Q[0]], [V1[1], Q[1]], color='red')
-        #    plt.plot([Q[0], V2[0]], [Q[1], V2[1]], color='red')
-        #    plt.show()
+
         foo = foo + 1
 
-    # for testing only
-    shrinked_vertex = hull_vertices.vertex
-    inside_shrinked = inside
+    # TODO what to do with inside?
     released = []
 
-    return shrinked_vertex, inside_shrinked, released
+    return hull_vertices.vertex, inside, released
 
 def points_within(points, vertex):
     if points.shape[-1] > 2:

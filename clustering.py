@@ -69,23 +69,28 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
     # plot points inside
     ax.plot(inside[:,0], inside[:,1], '.')
 
-def perp( a ) :
-    b = np.empty_like(a)
-    b[0] = -a[1]
-    b[1] = a[0]
-    return b
+def cross2D(v, w):
+    return v[0]*w[1] - v[1]*w[0]
 
-def seg_intersect(a1,a2, b1,b2) :
-    da = a2-a1
-    db = b2-b1
-    dp = a1-b1
-    dap = perp(da)
-    denom = np.dot(dap, db)
-    if not denom.any():
-        # parallel segments
-        return 0, True
-    num = np.dot(dap, dp)
-    return (num / denom.astype(float))*db + b1, False
+def seg_intersect(p, r, q, s):
+    # https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+
+    rxs = cross2D(r, s)
+
+    if rxs == 0:
+        return False
+
+    qp = q - p
+    
+    t = cross2D(qp, s) / rxs
+    if not (0 <= t <= 1):
+        return False
+
+    u = cross2D(qp, r) / rxs        
+    if not (0 <= u <= 1):
+        return False
+
+    return True
 
 
 ############################### KBCHT algorithm ################################

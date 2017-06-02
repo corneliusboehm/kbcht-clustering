@@ -187,8 +187,8 @@ def shrink_vertex(hull_vertices, inside):
         V21dot = np.dot(V21, V21)
 
         edges = list(
-            zip(hull_vertices.vertex,
-                np.append(hull_vertices.vertex[1:], [hull_vertices.vertex[0]], axis=0)))
+            zip(hull_vertices.vertex[1:],
+                np.append(hull_vertices.vertex[2:], [hull_vertices.vertex[0]], axis=0)))
 
         candidates = []
         for P in inside:

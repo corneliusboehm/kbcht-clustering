@@ -14,9 +14,16 @@ import sys
 def load_data(file):
     all_data, meta = loadarff(file)
     
-    # split data and class attribute
+    # split data and class attribute, assuming class is the last column
+    # TODO: Dynamically check for index of class attribute
     data = np.array([e.tolist()[:-1] for e in all_data])
     labels = np.array([int(e.tolist()[-1]) for e in all_data])
+
+    # only use first two attributes, because KBCHT only works in 2D
+    if data.shape[1] > 2:
+        print('Only keeping attributes {}, because KBCHT works in 2D'
+              .format(meta.names()[:2]))
+        data = data[:, :2]
     
     return data, labels
 
@@ -265,9 +272,7 @@ def shrink_vertex(hull_vertices, inside):
     return hull_vertices.vertex, inside, released
 
 def points_within(points, vertex):
-    if points.shape[-1] > 2:
-        print('ERROR: Points within can only be found for 2D polygons.')
-        sys.exit(0)
+    # NOTE: this only works for 2D
 
     if len(points) == 0:
         return np.array([])

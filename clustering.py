@@ -213,31 +213,33 @@ def shrink_vertex(hull_vertices, inside):
 
             # get projected point
             PP = V1 + u*V21
-            PPP = P - PP
+            PPP = PP - P
 
+            is_valid = True
             for i, edge in enumerate(edges):
 
-                intersection, err = seg_intersect(P, PPP, edge[0], edge[1])
-                if err:
-                    # parallel segments -> not intersecting
-                    candidates.append((P, np.linalg.norm(PPP)))
-
-                if not (0 <= 
-                    np.dot(edge[1] - edge[0], intersection - edge[0]) <= 
-                    np.linalg.norm(edge[1] - edge[0]) ** 2):
-                    # intersection not within segment
-                    candidates.append((P, np.linalg.norm(PPP)))
+                has_intersection = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
+                if not has_intersection:
+                    # no intersection with this edge, therefore check next edge
+                    continue
 
                 # we found an intersection. These are only allowed if the
                 # candidate vertex is either the V_last or V3...
-                _last = -1 if i == 0 else i-1
                 _next = 0 if i == len(edges)-1 else i+1
-                if np.array_equal(P, edges[_last]) or np.array_equal(P, edges[_next]):
-                    candidates.append((P, np.linalg.norm(PPP)))
+                if np.array_equal(P, hull_vertices[i-1].vertex) or np.array_equal(P, hull_vertices[_next].vertex):
+                    continue
 
-                # ... or the intersection is at V1 or V2
-                if np.array_equal(intersection, V1) or np.array_equal(intersection, V2):
-                    candidates.append((P, np.linalg.norm(PPP)))
+                # ... or the intersection is at V1 or V2. This can only happen
+                # if the intersection is PP.
+                if np.array_equal(PP, V1) or np.array_equal(PP, V2):
+                    continue
+
+                # otherwise this is an invalid intersection
+                is_valid = False
+                break
+            
+            if is_valid:
+                candidates.append((P, np.linalg.norm(PPP)))            
 
         if len(candidates) == 0:
             # no candidate for shrinking found

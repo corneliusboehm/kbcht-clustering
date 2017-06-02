@@ -248,12 +248,10 @@ def shrink_vertex(hull_vertices, inside):
             if all(hull_vertices.is_processed):
                 # finished search
                 break
-
-            continue
-
-        # add closest point to hull between V1 and V2
-        Q = min(candidates, key = lambda t: t[1])[0]
-        hull_vertices = np.insert(hull_vertices, 1, (Q, False), axis=0)
+        else:
+            # add closest point to hull between V1 and V2
+            Q = min(candidates, key = lambda t: t[1])[0]
+            hull_vertices = np.insert(hull_vertices, 1, (Q, False), axis=0)
 
         # TODO release vertices
 

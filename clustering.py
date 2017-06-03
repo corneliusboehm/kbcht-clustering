@@ -149,53 +149,54 @@ def average_distance(cluster):
 
     return avg_edge_length
 
-def sort_hull(vertices):
-    # max edge length in convex hull
-    edge_lengths = [euclidean(v[0], v[1]) for v in 
-        zip(vertices.vertex, 
-            np.append(vertices.vertex[1:], [vertices.vertex[0]], axis=0))
-    ]
+def create_hull(vertices):
+    # create hull struct that additionally contains information of edge length
+    # and processed status
+    
+    dt = np.dtype([('vertex', np.float64, (2,)), 
+                   ('length', np.float64), 
+                   ('is_processed', bool)])
 
-    # indices of by-length sorted array
-    by_length = np.argsort(edge_lengths)[::-1]
-    max_edge_length = edge_lengths[by_length[0]]
-    # sort vertices
-    vertices_by_length = vertices[by_length]
-    # get longest edge that is not processed
-    max_vertex = next(v for v in vertices_by_length if v.is_processed == False)
-    max_vertex_idx = np.where(vertices == max_vertex)[0][0]
+    hull = np.empty(len(vertices), dtype=dt)
+    for i, v in enumerate(vertices):
+        j = 0 if i == len(vertices)-1 else i+1
+        hull[i] = (v, np.linalg.norm(v-vertices[j]), False)
+
+    return np.rec.array(hull)
+
+def sort_hull(hull):
+
+    max_unprocessed_edge = hull[np.lexsort((-hull.length, hull.is_processed))][0]
+    idx = np.where(hull == max_unprocessed_edge)[0][0]
 
     # shift convex hull to have the longest edge at the beginning
-    vertices = np.roll(vertices, -max_vertex_idx, axis=0)
+    hull = np.roll(hull, -idx, axis=0)
 
-    return vertices, max_edge_length
+    return hull, max_unprocessed_edge.length
 
 def shrink_vertex(hull_vertices, inside):
 
-    # add processed status information
-    dt = np.dtype([('vertex', np.float64, (2,)), ('is_processed', bool)])
-    hull_vertices = np.rec.array([(v, False) for v in hull_vertices], dtype = dt)
-
-    hull_vertices, max_edge_length = sort_hull(hull_vertices)
+    hull = create_hull(hull_vertices)
+    hull, max_edge_length = sort_hull(hull)
     avg_edge_length = average_distance(inside)
 
     if max_edge_length < avg_edge_length:
         # ignore current hull, compute new one from remaining points
         # TODO: what about the previous hull?
-        new_hull, new_inside = convex_hull(inside)
-        return shrink_vertex(new_hull, new_inside)
+        new_hull_vertices, new_inside = convex_hull(inside)
+        return shrink_vertex(new_hull_vertices, new_inside)
 
     foo = 0
     while max_edge_length >= avg_edge_length:
         # shrinking
-        V1 = hull_vertices[0].vertex
-        V2 = hull_vertices[1].vertex
+        V1 = hull[0].vertex
+        V2 = hull[1].vertex
         V21 = V2 - V1
         V21dot = np.dot(V21, V21)
 
         edges = list(
-            zip(hull_vertices.vertex[1:],
-                np.append(hull_vertices.vertex[2:], [hull_vertices.vertex[0]], axis=0)))
+            zip(hull.vertex[1:],
+                np.append(hull.vertex[2:], [hull.vertex[0]], axis=0)))
 
         candidates = []
         for P in inside:
@@ -233,7 +234,7 @@ def shrink_vertex(hull_vertices, inside):
                 # we found an intersection. These are only allowed if the
                 # candidate vertex is either the V_last or V3...
                 _next = 0 if i == len(edges)-1 else i+1
-                if np.array_equal(P, hull_vertices[i-1].vertex) or np.array_equal(P, hull_vertices[_next].vertex):
+                if np.array_equal(P, hull[i-1].vertex) or np.array_equal(P, hull[_next].vertex):
                     continue
 
                 # ... or the intersection is at V1 or V2. This can only happen
@@ -250,26 +251,28 @@ def shrink_vertex(hull_vertices, inside):
 
         if len(candidates) == 0:
             # no candidate for shrinking found
-            hull_vertices[0].is_processed = True
+            hull[0].is_processed = True
 
-            if all(hull_vertices.is_processed):
+            if all(hull.is_processed):
                 # finished search
                 break
         else:
             # add closest point to hull between V1 and V2
             Q = min(candidates, key = lambda t: t[1])[0]
-            hull_vertices = np.insert(hull_vertices, 1, (Q, False), axis=0)
+            # update edge length
+            hull[0].length = np.linalg.norm(V1-Q)
+            hull = np.insert(hull, 1, (Q, np.linalg.norm(Q-V2), False), axis=0)
 
         # TODO release vertices
 
-        hull_vertices, max_edge_length = sort_hull(hull_vertices)
+        hull, max_edge_length = sort_hull(hull)
 
         foo = foo + 1
 
     # TODO what to do with inside?
     released = []
 
-    return hull_vertices.vertex, inside, released
+    return hull.vertex, inside, released
 
 def points_within(points, vertex):
     # NOTE: this only works for 2D

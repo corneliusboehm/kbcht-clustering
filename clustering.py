@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+from multiprocessing import Pool
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
@@ -323,18 +324,25 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
     return sub_clusters, sc_average_distances
 
 def parallel_step(initial_cluster):
+    print('  - Find convex hull')
     initial_vertex, inside = convex_hull(initial_cluster)
 
+    print('  - Shrink vertex')
     shrinked_vertex, inside_shrinked, released = \
         shrink_vertex(initial_vertex, inside)
 
+    print('  - Find subclusters')
     sub_clusters, sc_average_distances = \
         find_sub_clusters(shrinked_vertex, inside_shrinked)
 
     return sub_clusters, sc_average_distances, released
 
 def get_all_subclusters(initial_clusters):
-    sc_tuples = [parallel_step(ic) for ic in initial_clusters]
+    pool = Pool()
+    sc_tuples = pool.map(parallel_step, initial_clusters)
+    pool.close()
+
+    # reorganize outputs into separate flattened lists
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
     sc_average_distances = [average_distance for t in sc_tuples 
                                              for average_distance in t[1]]
@@ -415,9 +423,11 @@ def kbcht(km, data):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
 
+    print('- Get all subclusters')
     sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
 
+    print('- Merge subclusters')
     clusters, average_distances = \
         merge_clusters(sub_clusters, sc_average_distances)
 
@@ -489,8 +499,8 @@ if __name__ == "__main__":
     
     print('Perform KBCHT algorithm')
     labels_pred = kbcht(km, data)
-    e = evaluate(labels_true, labels_pred)
-    print('Score: {}'.format(e))
+    #e = evaluate(labels_true, labels_pred)
+    #print('Score: {}'.format(e))
     clusters_kbcht = create_clusters(data, labels_pred)
     ax3 = fig.add_subplot(133)
     visualize(clusters_kbcht, ax3, 'KBCHT Clustering')

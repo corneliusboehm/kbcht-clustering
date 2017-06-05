@@ -4,7 +4,7 @@ from multiprocessing import Pool
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
-from scipy.spatial.distance import euclidean, cdist, pdist
+from scipy.spatial.distance import cdist, pdist
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import sys
@@ -80,6 +80,9 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
 def cross2D(v, w):
     return v[0]*w[1] - v[1]*w[0]
 
+def array_equal(v, w):
+    return v[0] == w[0] and v[1] == w[1]
+
 def seg_intersect(p, r, q, s):
     # https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
 
@@ -145,7 +148,7 @@ def average_distance(cluster):
             edges.add((vi,nvi))
 
     # compute distances and return average distance
-    edge_lengths = [euclidean(dt.points[v[0]], dt.points[v[1]]) for v in edges]
+    edge_lengths = [np.linalg.norm(dt.points[v[0]] - dt.points[v[1]]) for v in edges]
     avg_edge_length = np.mean(edge_lengths)
 
     return avg_edge_length
@@ -228,7 +231,7 @@ def shrink_vertex(hull_vertices, inside):
             is_valid = True
             for i, edge in enumerate(edges):
 
-                if np.array_equal(P, edge[0]) or np.array_equal(P, edge[1]):
+                if array_equal(P, edge[0]) or array_equal(P, edge[1]):
                     continue
 
                 has_intersection = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
@@ -299,7 +302,7 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
     for i in range(num_vertices-1):
         if cluster_indices[i] == 0:
             for j in range(i+1, num_vertices):
-                diff = euclidean(shrinked_vertex[i], shrinked_vertex[j])
+                diff = np.linalg.norm(shrinked_vertex[i] - shrinked_vertex[j])
 
                 if diff == 0:
                     cluster_indices[range(i, j+1)] = cluster_idx

@@ -273,7 +273,7 @@ def shrink_vertex(hull_vertices, inside):
         hull, max_edge_length = sort_hull(hull)
 
     # TODO what to do with inside?
-    released = []
+    released = np.zeros((0, 2))
 
     return hull.vertex, released
 
@@ -284,7 +284,8 @@ def points_within(points, vertex):
         return np.array([])
 
     p = Path(vertex)
-    return points[p.contains_points(points)]
+    within_indices = p.contains_points(points)
+    return points[within_indices], within_indices
 
 def find_sub_clusters(shrinked_vertex, initial_cluster):
     # Append last vertex point to the end to close the loop
@@ -307,11 +308,14 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
     # form subclusters from grouped vertices and points inside them
     sub_clusters = []
+    within_indices = np.array([False for _ in initial_cluster])
     for i in range(1, cluster_idx):
         sc_vertices = shrinked_vertex[cluster_indices == i]
 
         if len(sc_vertices) > 0:
-            sc_within = points_within(initial_cluster, sc_vertices)
+            sc_within, sc_within_indices = \
+                points_within(initial_cluster, sc_vertices)
+            within_indices = within_indices | sc_within_indices
 
             if len(sc_within) > 0:
                 sc = np.append(sc_vertices, sc_within, axis=0)
@@ -322,8 +326,11 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
     # calculate average distance for each subcluster
     sc_average_distances = [average_distance(sc) for sc in sub_clusters]
+
+    # mark points that do not lie within any subcluster as released
+    released = initial_cluster[np.where(~within_indices)]
     
-    return sub_clusters, sc_average_distances
+    return sub_clusters, sc_average_distances, released
 
 def parallel_step(initial_cluster):
     print('  - Find convex hull')
@@ -333,8 +340,9 @@ def parallel_step(initial_cluster):
     shrinked_vertex, released = shrink_vertex(initial_vertex, inside)
 
     print('  - Find subclusters')
-    sub_clusters, sc_average_distances = \
+    sub_clusters, sc_average_distances, sc_released = \
         find_sub_clusters(shrinked_vertex, initial_cluster)
+    released = np.append(released, sc_released, axis=0)
 
     return sub_clusters, sc_average_distances, released
 

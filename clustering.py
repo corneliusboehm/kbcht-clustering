@@ -302,12 +302,12 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
     cluster_idx = 1
 
     for i in range(num_vertices-1):
+        last_j = i
         if cluster_indices[i] == 0:
             for j in range(i+1, num_vertices):
-                diff = np.linalg.norm(shrinked_vertex[i] - shrinked_vertex[j])
-
-                if diff == 0:
-                    cluster_indices[range(i, j+1)] = cluster_idx
+                if array_equal(shrinked_vertex[i], shrinked_vertex[j]):
+                    cluster_indices[range(last_j, j+1)] = cluster_idx
+                    last_j = j
                     cluster_idx += 1
 
     # form subclusters from grouped vertices and points inside them

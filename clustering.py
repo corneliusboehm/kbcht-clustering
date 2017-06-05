@@ -229,6 +229,9 @@ def shrink_vertex(hull_vertices, inside):
             is_valid = True
             for i, edge in enumerate(edges):
 
+                if np.array_equal(P, edge[0]) or np.array_equal(P, edge[1]):
+                    continue
+
                 has_intersection = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
                 if not has_intersection:
                     # no intersection with this edge, therefore check next edge

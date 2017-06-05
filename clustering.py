@@ -273,7 +273,7 @@ def shrink_vertex(hull_vertices, inside):
     # TODO what to do with inside?
     released = []
 
-    return hull.vertex, inside, released
+    return hull.vertex, released
 
 def points_within(points, vertex):
     # NOTE: this only works for 2D
@@ -284,8 +284,8 @@ def points_within(points, vertex):
     p = Path(vertex)
     return points[p.contains_points(points)]
 
-def find_sub_clusters(shrinked_vertex, inside_shrinked):
-    # for testing
+def find_sub_clusters(shrinked_vertex, initial_cluster):
+    # Append last vertex point to the end to close the loop
     shrinked_vertex = np.append(shrinked_vertex, 
                                 [shrinked_vertex[0]], axis=0)
 
@@ -309,7 +309,7 @@ def find_sub_clusters(shrinked_vertex, inside_shrinked):
         sc_vertices = shrinked_vertex[cluster_indices == i]
 
         if len(sc_vertices) > 0:
-            sc_within = points_within(inside_shrinked, sc_vertices)
+            sc_within = points_within(initial_cluster, sc_vertices)
 
             if len(sc_within) > 0:
                 sc = np.append(sc_vertices, sc_within, axis=0)
@@ -328,12 +328,11 @@ def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
 
     print('  - Shrink vertex')
-    shrinked_vertex, inside_shrinked, released = \
-        shrink_vertex(initial_vertex, inside)
+    shrinked_vertex, released = shrink_vertex(initial_vertex, inside)
 
     print('  - Find subclusters')
     sub_clusters, sc_average_distances = \
-        find_sub_clusters(shrinked_vertex, inside_shrinked)
+        find_sub_clusters(shrinked_vertex, initial_cluster)
 
     return sub_clusters, sc_average_distances, released
 

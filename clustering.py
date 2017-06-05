@@ -432,13 +432,15 @@ def add_released(clusters, average_distances, released):
 
     return clusters
 
-def kbcht(km, data):
+def kbcht(km, data, ax):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
 
     print('- Get all subclusters')
     sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
+
+    visualize(sub_clusters, ax, 'Subclusters')
 
     print('- Merge subclusters')
     clusters, average_distances = \
@@ -456,7 +458,7 @@ def kbcht(km, data):
 
 def einfaches_clustering(data, k):
     km = kmeans(data, k)
-    list_of_labels = kbcht(km, data)
+    list_of_labels = kbcht(km, data, None)
     return list_of_labels
 
 def tolles_clustering_mit_visualisierung(data, k):
@@ -493,12 +495,12 @@ if __name__ == "__main__":
                   '           FILE - Input file')
             sys.exit(0)
 
-    fig = plt.figure(figsize=[10, 4])
+    fig = plt.figure(figsize=[12, 4])
     
     print('Load data')
     data, labels_true = load_data(file)
     clusters_true = create_clusters(data, labels_true)
-    ax1 = fig.add_subplot(131)
+    ax1 = fig.add_subplot(141)
     visualize(clusters_true, ax1, 'True Classes')
     
     print('Perform k-means clustering')
@@ -507,16 +509,17 @@ if __name__ == "__main__":
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
     clusters_km = create_clusters(data, labels_pred)
-    ax2 = fig.add_subplot(132)
+    ax2 = fig.add_subplot(142)
     visualize(clusters_km, ax2, 'K-Means Clustering')
     
     print('Perform KBCHT algorithm')
-    labels_pred = kbcht(km, data)
-    #e = evaluate(labels_true, labels_pred)
-    #print('Score: {}'.format(e))
+    ax3 = fig.add_subplot(143)
+    labels_pred = kbcht(km, data, ax3)
+    e = evaluate(labels_true, labels_pred)
+    print('Score: {}'.format(e))
     clusters_kbcht = create_clusters(data, labels_pred)
-    ax3 = fig.add_subplot(133)
-    visualize(clusters_kbcht, ax3, 'KBCHT Clustering')
+    ax4 = fig.add_subplot(144)
+    visualize(clusters_kbcht, ax4, 'KBCHT Clustering')
     
     print('Done')
     # show all plots

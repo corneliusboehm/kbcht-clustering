@@ -187,8 +187,9 @@ def shrink_vertex(hull_vertices, inside):
     if max_edge_length < avg_edge_length:
         # ignore current hull, compute new one from remaining points
         # TODO: what about the previous hull?
-        new_hull_vertices, new_inside = convex_hull(inside)
-        return shrink_vertex(new_hull_vertices, new_inside)
+        new_hull_vertices, inside = convex_hull(inside)
+        new_hull_vertices, released = shrink_vertex(new_hull_vertices, inside)
+        return new_hull_vertices, np.append(released, hull_vertices, axis=0)
 
     all_points = np.append(inside, hull_vertices, axis=0)
 

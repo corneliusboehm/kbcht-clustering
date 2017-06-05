@@ -36,10 +36,10 @@ def create_assignments(orig_data, clusters):
     assignments = []
 
     for d in orig_data:
-        for c in range(len(clusters)):
-            if np.any(np.all(clusters[c] == d, axis=1)):
+        for idx, cluster in enumerate(clusters):
+            if np.any(np.all(cluster == d, axis=1)):
                 # this is the first cluster that contains the data point
-                assignments.append(c)
+                assignments.append(idx)
                 break
 
     return assignments

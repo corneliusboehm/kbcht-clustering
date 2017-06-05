@@ -187,8 +187,9 @@ def shrink_vertex(hull_vertices, inside):
         new_hull_vertices, new_inside = convex_hull(inside)
         return shrink_vertex(new_hull_vertices, new_inside)
 
-    foo = 0
-    while max_edge_length >= avg_edge_length:
+    all_points = np.append(inside, hull_vertices, axis=0)
+
+    while max_edge_length >= 2*avg_edge_length:
         # shrinking
         V1 = hull[0].vertex
         V2 = hull[1].vertex
@@ -200,7 +201,7 @@ def shrink_vertex(hull_vertices, inside):
                 np.append(hull.vertex[2:], [hull.vertex[0]], axis=0)))
 
         candidates = []
-        for P in inside:
+        for P in all_points:
             # find closest point from x to the line between V1 and V2:
             # 1) its projection falls between V1 and V2
             # 2) it resides on the left of V1 and V2
@@ -226,6 +227,9 @@ def shrink_vertex(hull_vertices, inside):
 
             is_valid = True
             for i, edge in enumerate(edges):
+
+                if np.array_equal(P, edge[0]) or np.array_equal(P, edge[1]):
+                    continue
 
                 has_intersection = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
                 if not has_intersection:
@@ -267,8 +271,6 @@ def shrink_vertex(hull_vertices, inside):
         # TODO release vertices
 
         hull, max_edge_length = sort_hull(hull)
-
-        foo = foo + 1
 
     # TODO what to do with inside?
     released = []

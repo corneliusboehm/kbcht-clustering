@@ -187,6 +187,8 @@ def shrink_vertex(hull_vertices, inside):
         new_hull_vertices, new_inside = convex_hull(inside)
         return shrink_vertex(new_hull_vertices, new_inside)
 
+    all_points = np.append(inside, hull_vertices, axis=0)
+
     foo = 0
     while max_edge_length >= avg_edge_length:
         # shrinking
@@ -200,7 +202,7 @@ def shrink_vertex(hull_vertices, inside):
                 np.append(hull.vertex[2:], [hull.vertex[0]], axis=0)))
 
         candidates = []
-        for P in inside:
+        for P in all_points:
             # find closest point from x to the line between V1 and V2:
             # 1) its projection falls between V1 and V2
             # 2) it resides on the left of V1 and V2

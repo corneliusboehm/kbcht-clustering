@@ -189,7 +189,6 @@ def shrink_vertex(hull_vertices, inside):
 
     all_points = np.append(inside, hull_vertices, axis=0)
 
-    foo = 0
     while max_edge_length >= 2*avg_edge_length:
         # shrinking
         V1 = hull[0].vertex
@@ -272,8 +271,6 @@ def shrink_vertex(hull_vertices, inside):
         # TODO release vertices
 
         hull, max_edge_length = sort_hull(hull)
-
-        foo = foo + 1
 
     # TODO what to do with inside?
     released = []

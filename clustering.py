@@ -1,3 +1,4 @@
+from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from multiprocessing import Pool
@@ -83,6 +84,9 @@ def cross2D(v, w):
 def array_equal(v, w):
     return v[0] == w[0] and v[1] == w[1]
 
+def dist(v, w):
+    return sqrt((v[0]-w[0])**2 + (v[1]-w[1])**2)
+
 def seg_intersect(p, r, q, s):
     # https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
 
@@ -148,14 +152,14 @@ def average_distance(cluster):
             edges.add((vi,nvi))
 
     # compute distances and return average distance
-    edge_lengths = [np.linalg.norm(dt.points[v[0]] - dt.points[v[1]]) for v in edges]
+    edge_lengths = [dist(dt.points[v[0]], dt.points[v[1]]) for v in edges]
     avg_edge_length = np.mean(edge_lengths)
 
     return avg_edge_length
 
 def create_hull(vertices):
     # create hull struct that additionally contains information of edge length
-    # and processed status
+    # (to the next hull vertex) and processed status
     
     dt = np.dtype([('vertex', np.float64, (2,)), 
                    ('length', np.float64), 
@@ -164,7 +168,7 @@ def create_hull(vertices):
     hull = np.empty(len(vertices), dtype=dt)
     for i, v in enumerate(vertices):
         j = 0 if i == len(vertices)-1 else i+1
-        hull[i] = (v, np.linalg.norm(v-vertices[j]), False)
+        hull[i] = (v, dist(v, vertices[j]), False)
 
     return np.rec.array(hull)
 
@@ -256,7 +260,7 @@ def shrink_vertex(hull_vertices, inside):
                 break
             
             if is_valid:
-                candidates.append((P, np.linalg.norm(PPP)))            
+                candidates.append((P, dist(P, PP)))            
 
         if len(candidates) == 0:
             # no candidate for shrinking found
@@ -269,8 +273,8 @@ def shrink_vertex(hull_vertices, inside):
             # add closest point to hull between V1 and V2
             Q = min(candidates, key = lambda t: t[1])[0]
             # update edge length
-            hull[0].length = np.linalg.norm(V1-Q)
-            hull = np.insert(hull, 1, (Q, np.linalg.norm(Q-V2), False), axis=0)
+            hull[0].length = dist(V1, Q)
+            hull = np.insert(hull, 1, (Q, dist(Q, V2), False), axis=0)
 
         # TODO release vertices
 

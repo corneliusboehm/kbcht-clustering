@@ -53,7 +53,7 @@ def create_assignments(orig_data, clusters):
 def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
 
-def visualize(data, ax=None, title=''):
+def visualize(data, ax=None, title='', contains_noise=False):
     if ax is None:
         # create a new axis if no existing one is provided
         fig = plt.figure()
@@ -63,11 +63,20 @@ def visualize(data, ax=None, title=''):
     
     if type(data) == np.ndarray:
         # there is only one cluster -> plot directly
-        ax.plot(data[:,0], data[:,1], '.')
+        if contains_noise:
+            ax.plot(data[:,0], data[:,1], 'xk')
+        else:
+            ax.plot(data[:,0], data[:,1], '.')
     else:
         # there are multiple clusters -> plot each one in a different color
-        for c in data:
-            ax.plot(c[:,0], c[:,1], '.')
+        for c in range(len(data)-1):
+            ax.plot(data[c][:,0], data[c][:,1], '.')
+
+        if contains_noise:
+            # last cluster is noise
+            ax.plot(data[-1][:,0], data[-1][:,1], 'xk')
+        else:
+            ax.plot(data[-1][:,0], data[-1][:,1], '.')
 
 def visualize_vertex(vertex, inside, ax=None, title=''):
     if ax is None:
@@ -194,8 +203,7 @@ def shrink_vertex(hull_vertices, inside):
     avg_edge_length = average_distance(inside)
 
     if max_edge_length < avg_edge_length:
-        # ignore current hull, compute new one from remaining points
-        # TODO: what about the previous hull?
+        # mark current hull as released, compute new hull from remaining points
         new_hull_vertices, inside = convex_hull(inside)
         new_hull_vertices, released = shrink_vertex(new_hull_vertices, inside)
         return new_hull_vertices, np.append(released, hull_vertices, axis=0)
@@ -281,13 +289,36 @@ def shrink_vertex(hull_vertices, inside):
             hull[0].length = dist(V1, Q)
             hull = np.insert(hull, 1, (Q, dist(Q, V2), False), axis=0)
 
-        # TODO release vertices
-
         hull, max_edge_length = sort_hull(hull)
 
+    return hull.vertex
+
+def release_vertices(vertex):
     released = np.zeros((0, 2))
 
-    return hull.vertex, released
+    change = True
+    while change:
+        change = False
+        to_release = []
+        to_remove = []
+
+        num_vertices = len(vertex)
+        for i in range(num_vertices):
+            if array_equal(vertex[i], vertex[(i+2)%num_vertices]):
+                # point at i+1 has same previous and next point 
+                # => release the point and remove one of its neighbors
+                to_release.append((i+1)%num_vertices)
+                to_remove.append(i)
+                change = True
+
+        if change:
+            to_keep = list(set(range(num_vertices)) 
+                           - set(to_release) - set(to_remove))
+            
+            released = np.append(released, vertex[to_release], axis=0)
+            vertex = vertex[to_keep]
+
+    return vertex, released
 
 def points_within(points, vertex):
     # NOTE: this only works for 2D
@@ -296,7 +327,7 @@ def points_within(points, vertex):
         return np.array([])
 
     p = Path(vertex)
-    within_indices = p.contains_points(points)
+    within_indices = p.contains_points(points, radius=0.0001)
     return points[within_indices], within_indices
 
 def remove_duplicates(cluster):
@@ -361,7 +392,8 @@ def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
 
     print('  - Shrink vertex')
-    shrinked_vertex, released = shrink_vertex(initial_vertex, inside)
+    shrinked_vertex = shrink_vertex(initial_vertex, inside)
+    shrinked_vertex, released = release_vertices(shrinked_vertex)
 
     print('  - Find subclusters')
     sub_clusters, sc_average_distances, sc_released = \
@@ -379,7 +411,7 @@ def get_all_subclusters(initial_clusters):
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
     sc_average_distances = [average_distance for t in sc_tuples 
                                              for average_distance in t[1]]
-    released = [r for t in sc_tuples for r in t[2]]
+    released = np.array([r for t in sc_tuples for r in t[2]])
     
     return sub_clusters, sc_average_distances, released
 
@@ -447,10 +479,10 @@ def add_released(clusters, average_distances, released):
             else:
                 noise = np.append(noise, [p], axis=0)
 
-    if not noise is None:
+    if noise is not None:
         clusters.append(noise)
 
-    return clusters
+    return clusters, noise is not None
 
 def kbcht(km, data, ax):
     km_clusters = km.predict(data)
@@ -460,25 +492,26 @@ def kbcht(km, data, ax):
     sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
 
-    visualize(sub_clusters, ax, 'Subclusters')
+    visualize(sub_clusters+[released], ax, 'Subclusters', contains_noise=True)
 
     print('- Merge subclusters')
     clusters, average_distances = \
         merge_clusters(sub_clusters, sc_average_distances)
 
-    clusters = add_released(clusters, average_distances, released)
+    clusters, contains_noise = \
+        add_released(clusters, average_distances, released)
     
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
     
-    return assignments
+    return assignments, contains_noise
 
 
 ############# entry points for the clustering algorithms framework #############
 
 def einfaches_clustering(data, k):
     km = kmeans(data, k)
-    list_of_labels = kbcht(km, data, None)
+    list_of_labels, contains_noise = kbcht(km, data, None)
     return list_of_labels
 
 def tolles_clustering_mit_visualisierung(data, k):
@@ -534,12 +567,12 @@ if __name__ == "__main__":
     
     print('Perform KBCHT algorithm')
     ax3 = fig.add_subplot(143)
-    labels_pred = kbcht(km, data, ax3)
+    labels_pred, contains_noise = kbcht(km, data, ax3)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
     clusters_kbcht = create_clusters(data, labels_pred)
     ax4 = fig.add_subplot(144)
-    visualize(clusters_kbcht, ax4, 'KBCHT Clustering')
+    visualize(clusters_kbcht, ax4, 'KBCHT Clustering', contains_noise)
     
     print('Done')
     # show all plots

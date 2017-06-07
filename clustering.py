@@ -285,7 +285,6 @@ def shrink_vertex(hull_vertices, inside):
 
         hull, max_edge_length = sort_hull(hull)
 
-    # TODO what to do with inside?
     released = np.zeros((0, 2))
 
     return hull.vertex, released
@@ -300,8 +299,18 @@ def points_within(points, vertex):
     within_indices = p.contains_points(points)
     return points[within_indices], within_indices
 
+def remove_duplicates(cluster):
+    # transform cluster to list of tuples
+    l = [tuple(p) for p in cluster]
+
+    # use set to remove duplicates
+    s = set(l)
+
+    # transform back to numpy array
+    return np.array(list(s))
+
 def find_sub_clusters(shrinked_vertex, initial_cluster):
-    # Append last vertex point to the end to close the loop
+    # append last vertex point to the end to close the loop
     shrinked_vertex = np.append(shrinked_vertex, 
                                 [shrinked_vertex[0]], axis=0)
 
@@ -312,12 +321,11 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
     for i in range(num_vertices-1):
         last_j = i
-        if cluster_indices[i] == 0:
-            for j in range(i+1, num_vertices):
-                if array_equal(shrinked_vertex[i], shrinked_vertex[j]):
-                    cluster_indices[range(last_j, j+1)] = cluster_idx
-                    last_j = j
-                    cluster_idx += 1
+        for j in range(i+1, num_vertices):
+            if array_equal(shrinked_vertex[i], shrinked_vertex[j]):
+                cluster_indices[range(last_j, j+1)] = cluster_idx
+                last_j = j
+                cluster_idx += 1
 
     # form subclusters from grouped vertices and points inside them
     sub_clusters = []
@@ -336,6 +344,9 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
                 sc = sc_vertices
 
             sub_clusters.append(sc)
+
+    # remove duplicates from clusters
+    sub_clusters = [remove_duplicates(sc) for sc in sub_clusters]
 
     # calculate average distance for each subcluster
     sc_average_distances = [average_distance(sc) for sc in sub_clusters]

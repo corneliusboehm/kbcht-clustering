@@ -238,7 +238,7 @@ def shrink_vertex(hull_vertices, inside):
             PP = V1 + u*V21
             PPP = PP - P
 
-            is_valid = True
+            num_intersections = 0
             for i, edge in enumerate(edges):
 
                 if array_equal(P, edge[0]) or array_equal(P, edge[1]):
@@ -251,20 +251,20 @@ def shrink_vertex(hull_vertices, inside):
 
                 # we found an intersection. These are only allowed if the
                 # candidate vertex is either the V_last or V3...
-                _next = 0 if i == len(edges)-1 else i+1
-                if np.array_equal(P, hull[i-1].vertex) or np.array_equal(P, hull[_next].vertex):
-                    continue
-
-                # ... or the intersection is at V1 or V2. This can only happen
-                # if the intersection is PP.
-                if np.array_equal(PP, V1) or np.array_equal(PP, V2):
+                if array_equal(P, hull[-1].vertex) or array_equal(P, hull[2].vertex):
                     continue
 
                 # otherwise this is an invalid intersection
-                is_valid = False
-                break
+                num_intersections += 1
+                if num_intersections > 1:
+                    # only one intersection can be found at max 
+                    # (see condition below)
+                    break
             
-            if is_valid:
+            if num_intersections == 0 or (num_intersections == 1 and (
+                0-eps <= u <= 0+eps or 1-eps <= u <= 1+eps)):
+                # Add point if it has no intersection or the only intersection 
+                # is at V1 or V2. This happens if u == 0 or u == 1.
                 candidates.append((P, dist(P, PP)))            
 
         if len(candidates) == 0:

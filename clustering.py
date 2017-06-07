@@ -11,7 +11,12 @@ from sklearn.cluster import KMeans
 import sys
 
 
-############################## utility functions ###############################
+############################## internal parameter #############################
+
+# tolerance with respect to floating point operations
+eps = 0.000001
+
+############################## utility functions ##############################
 
 def load_data(file):
     all_data, meta = loadarff(file)
@@ -98,11 +103,11 @@ def seg_intersect(p, r, q, s):
     qp = q - p
     
     t = cross2D(qp, s) / rxs
-    if not (0 <= t <= 1):
+    if not (0-eps <= t <= 1+eps):
         return False
 
     u = cross2D(qp, r) / rxs        
-    if not (0 <= u <= 1):
+    if not (0-eps <= u <= 1+eps):
         return False
 
     return True
@@ -219,13 +224,13 @@ def shrink_vertex(hull_vertices, inside):
             PV1 = P - V1
             u = np.dot(PV1, V21) / V21dot
 
-            if not (0 <= u <= 1):
+            if not (0-eps <= u <= 1+eps):
                 # 1) failed
                 continue
 
             # NOTE: this only works for 2D
             M = np.vstack((np.array([V1, V2, P]).T,[1,1,1]))
-            if np.linalg.det(M) <= 0.00001: # allow some rounding error
+            if np.linalg.det(M) <= 0+eps: # allow some rounding error
                 # 2) failed
                 continue
 

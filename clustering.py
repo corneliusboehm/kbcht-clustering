@@ -299,7 +299,8 @@ def shrink_vertex(hull_vertices, inside):
 
         hull, max_edge_length = sort_hull(hull)
 
-    return hull.vertex
+    # the original releasing has not been implemented -> return an empty array
+    return hull.vertex, np.zeros((0, 2))
 
 def release_vertices(vertex):
     released = np.zeros((0, 2))
@@ -398,7 +399,7 @@ def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
 
     print('  - Shrink vertex')
-    shrinked_vertex = shrink_vertex(initial_vertex, inside)
+    shrinked_vertex, _ = shrink_vertex(initial_vertex, inside)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
 
     print('  - Find subclusters')

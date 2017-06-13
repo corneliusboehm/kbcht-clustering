@@ -18,6 +18,7 @@ eps = 0.000001
 
 ############################## utility functions ##############################
 
+
 def load_data(file):
     all_data, meta = loadarff(file)
 
@@ -34,8 +35,10 @@ def load_data(file):
 
     return data, labels
 
+
 def create_clusters(data, assignments):
     return [data[assignments == i] for i in np.unique(assignments)]
+
 
 def create_assignments(orig_data, clusters):
     assignments = []
@@ -49,8 +52,10 @@ def create_assignments(orig_data, clusters):
 
     return assignments
 
+
 def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
+
 
 def visualize(data, ax=None, title='', contains_noise=False):
     if ax is None:
@@ -77,6 +82,7 @@ def visualize(data, ax=None, title='', contains_noise=False):
         else:
             ax.plot(data[-1][:,0], data[-1][:,1], '.')
 
+
 def visualize_vertex(vertex, inside, ax=None, title=''):
     if ax is None:
         # create a new axis if no existing one is provided
@@ -91,14 +97,18 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
     # plot points inside
     ax.plot(inside[:,0], inside[:,1], '.')
 
+
 def cross2D(v, w):
     return v[0]*w[1] - v[1]*w[0]
+
 
 def array_equal(v, w):
     return v[0] == w[0] and v[1] == w[1]
 
+
 def dist(v, w):
     return sqrt((v[0]-w[0])**2 + (v[1]-w[1])**2)
+
 
 def seg_intersect(p, r, q, s):
     # https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
@@ -120,12 +130,13 @@ def seg_intersect(p, r, q, s):
 
     return True
 
-
 ############################### KBCHT algorithm ###############################
+
 
 def kmeans(data, k):
     km = KMeans(n_clusters=k).fit(data)
     return km
+
 
 def convex_hull(initial_cluster):
     if len(initial_cluster) < 3:
@@ -133,13 +144,14 @@ def convex_hull(initial_cluster):
 
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
-    inside_indices = list(set(range(len(initial_cluster))) - \
+    inside_indices = list(set(range(len(initial_cluster))) -
                           set(hull_indices))
 
     initial_vertex = initial_cluster[hull_indices]
     inside = initial_cluster[inside_indices]
 
     return initial_vertex, inside
+
 
 def average_distance(cluster):
     if len(cluster) <= 1:
@@ -168,15 +180,16 @@ def average_distance(cluster):
 
     return avg_edge_length
 
+
 def create_hull(vertices):
     """Create hull struct.
 
     A numpy record array is created that contains for each vertex in the hull
-    additionally the edge length (to the next hull vertex in counterclockwise 
+    additionally the edge length (to the next hull vertex in counterclockwise
     order) and its processed status.
     """
-    dt = np.dtype([('vertex', np.float64, (2,)), 
-                   ('length', np.float64), 
+    dt = np.dtype([('vertex', np.float64, (2,)),
+                   ('length', np.float64),
                    ('is_processed', bool)])
 
     hull = np.empty(len(vertices), dtype=dt)
@@ -185,6 +198,7 @@ def create_hull(vertices):
         hull[i] = (v, dist(v, vertices[j]), False)
 
     return np.rec.array(hull)
+
 
 def sort_hull(hull):
     """Sort hull by edge length.
@@ -199,6 +213,7 @@ def sort_hull(hull):
     hull = np.roll(hull, -idx, axis=0)
 
     return hull, max_unproc_edge.length
+
 
 def shrink_vertex(hull_vertices, inside):
     """Shrink convex hull.
@@ -272,16 +287,16 @@ def shrink_vertex(hull_vertices, inside):
                 # otherwise this is an invalid intersection
                 num_intersections += 1
                 if num_intersections > 1:
-                    # only one intersection is allowed at max 
+                    # only one intersection is allowed at max
                     # (see condition below)
                     break
 
             if num_intersections == 0 or \
-               num_intersections == 1 and (0-eps <= u <= 0+eps or \
+               num_intersections == 1 and (0-eps <= u <= 0+eps or
                                            1-eps <= u <= 1+eps):
-                # add point if it has no intersection or the only intersection 
+                # add point if it has no intersection or the only intersection
                 # is at V1 or V2. This happens if u == 0 or u == 1.
-                candidates.append((P, dist(P, PP)))            
+                candidates.append((P, dist(P, PP)))
 
         if len(candidates) == 0:
             # no candidate for shrinking found
@@ -302,6 +317,7 @@ def shrink_vertex(hull_vertices, inside):
     # the original releasing has not been implemented -> return an empty array
     return hull.vertex, np.zeros((0, 2))
 
+
 def release_vertices(vertex):
     released = np.zeros((0, 2))
 
@@ -314,20 +330,21 @@ def release_vertices(vertex):
         num_vertices = len(vertex)
         for i in range(num_vertices):
             if array_equal(vertex[i], vertex[(i+2)%num_vertices]):
-                # point at i+1 has same previous and next point 
+                # point at i+1 has same previous and next point
                 # => release the point and remove one of its neighbors
                 to_release.append((i+1)%num_vertices)
                 to_remove.append(i)
                 change = True
 
         if change:
-            to_keep = list(set(range(num_vertices)) 
-                           - set(to_release) - set(to_remove))
+            to_keep = list(set(range(num_vertices)) -
+                           set(to_release) - set(to_remove))
 
             released = np.append(released, vertex[to_release], axis=0)
             vertex = vertex[to_keep]
 
     return vertex, released
+
 
 def points_within(points, vertex):
     if len(points) == 0:
@@ -336,6 +353,7 @@ def points_within(points, vertex):
     p = Path(vertex)
     within_indices = p.contains_points(points, radius=0.0001)
     return points[within_indices], within_indices
+
 
 def remove_duplicates(cluster):
     # transform cluster to list of tuples
@@ -347,9 +365,10 @@ def remove_duplicates(cluster):
     # transform back to numpy array
     return np.array(list(s))
 
+
 def find_sub_clusters(shrinked_vertex, initial_cluster):
     # append last vertex point to the end to close the loop
-    shrinked_vertex = np.append(shrinked_vertex, 
+    shrinked_vertex = np.append(shrinked_vertex,
                                 [shrinked_vertex[0]], axis=0)
 
     num_vertices = len(shrinked_vertex)
@@ -394,6 +413,7 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
     return sub_clusters, sc_average_distances, released
 
+
 def parallel_step(initial_cluster):
     print('  - Find convex hull')
     initial_vertex, inside = convex_hull(initial_cluster)
@@ -409,20 +429,23 @@ def parallel_step(initial_cluster):
 
     return sub_clusters, sc_average_distances, released
 
+
 def get_all_subclusters(initial_clusters):
     sc_tuples = [parallel_step(ic) for ic in initial_clusters]
 
     # reorganize outputs into separate flattened lists
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
-    sc_average_distances = [average_distance for t in sc_tuples 
+    sc_average_distances = [average_distance for t in sc_tuples
                                              for average_distance in t[1]]
     released = np.array([r for t in sc_tuples for r in t[2]])
 
     return sub_clusters, sc_average_distances, released
 
+
 def cluster_distance(c1, c2):
     # calculate minimum pairwise distance between the two clusters
     return np.min(cdist(c1, c2))
+
 
 def merge_clusters(sub_clusters, sc_average_distances):
     nsc = len(sub_clusters)
@@ -468,6 +491,7 @@ def merge_clusters(sub_clusters, sc_average_distances):
 
     return clusters, average_distances
 
+
 def add_released(clusters, average_distances, released):
     noise = None
 
@@ -488,6 +512,7 @@ def add_released(clusters, average_distances, released):
         clusters.append(noise)
 
     return clusters, noise is not None
+
 
 def kbcht(km, data, ax=None):
     km_clusters = km.predict(data)
@@ -512,8 +537,8 @@ def kbcht(km, data, ax=None):
 
     return assignments, contains_noise
 
-
 ############# entry points for the clustering algorithms framework ############
+
 
 def einfaches_clustering(data, k):
     """Cluster data with KBCHT.
@@ -526,6 +551,7 @@ def einfaches_clustering(data, k):
     km = kmeans(data, k)
     list_of_labels, _ = kbcht(km, data)
     return list_of_labels
+
 
 def tolles_clustering_mit_visualisierung(data, k):
     """Cluster data with KBCHT, including a visualization.
@@ -548,8 +574,8 @@ def tolles_clustering_mit_visualisierung(data, k):
     visualize(kbcht_clusters, plt.gca(), 'KBCHT Clustering', contains_noise)
     plt.savefig("kbcht_clustering.png")
     plt.cla()
-    list_of_image_filenames = ["kmeans_clustering.png", 
-                               "subclusters.png", 
+    list_of_image_filenames = ["kmeans_clustering.png",
+                               "subclusters.png",
                                "kbcht_clustering.png"]
     return list_of_labels, list_of_image_filenames
 

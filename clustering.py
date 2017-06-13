@@ -20,7 +20,7 @@ eps = 0.000001
 
 def load_data(file):
     all_data, meta = loadarff(file)
-    
+
     # split data and class attribute, assuming class is the last column
     # TODO: Dynamically check for index of class attribute
     data = np.array([e.tolist()[:-1] for e in all_data])
@@ -31,14 +31,13 @@ def load_data(file):
         print('Only keeping attributes {}, because KBCHT works in 2D'
               .format(meta.names()[:2]))
         data = data[:, :2]
-    
+
     return data, labels
 
 def create_clusters(data, assignments):
     return [data[assignments == i] for i in np.unique(assignments)]
 
 def create_assignments(orig_data, clusters):
-    # TODO: there should be a more efficient/pythonic way
     assignments = []
 
     for d in orig_data:
@@ -58,9 +57,9 @@ def visualize(data, ax=None, title='', contains_noise=False):
         # create a new axis if no existing one is provided
         fig = plt.figure()
         ax = fig.add_subplot(111)
-    
+
     ax.set_title(title)
-    
+
     if type(data) == np.ndarray:
         # there is only one cluster -> plot directly
         if contains_noise:
@@ -83,7 +82,7 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
         # create a new axis if no existing one is provided
         fig = plt.figure()
         ax = fig.add_subplot(111)
-    
+
     ax.set_title(title)
 
     # plot hull vertex connected by lines
@@ -110,19 +109,19 @@ def seg_intersect(p, r, q, s):
         return False
 
     qp = q - p
-    
+
     t = cross2D(qp, s) / rxs
     if not (0-eps <= t <= 1+eps):
         return False
 
-    u = cross2D(qp, r) / rxs        
+    u = cross2D(qp, r) / rxs
     if not (0-eps <= u <= 1+eps):
         return False
 
     return True
 
 
-############################### KBCHT algorithm ################################
+############################### KBCHT algorithm ###############################
 
 def kmeans(data, k):
     km = KMeans(n_clusters=k).fit(data)
@@ -136,12 +135,10 @@ def convex_hull(initial_cluster):
     hull_indices = ch.vertices
     inside_indices = list(set(range(len(initial_cluster))) - \
                           set(hull_indices))
-    
+
     initial_vertex = initial_cluster[hull_indices]
     inside = initial_cluster[inside_indices]
 
-    # TODO: always add first node to the end?
-    
     return initial_vertex, inside
 
 def average_distance(cluster):
@@ -172,9 +169,12 @@ def average_distance(cluster):
     return avg_edge_length
 
 def create_hull(vertices):
-    # create hull struct that additionally contains information of edge length
-    # (to the next hull vertex) and processed status
-    
+    """Create hull struct.
+
+    A numpy record array is created that contains for each vertex in the hull
+    additionally the edge length (to the next hull vertex in counterclockwise 
+    order) and its processed status.
+    """
     dt = np.dtype([('vertex', np.float64, (2,)), 
                    ('length', np.float64), 
                    ('is_processed', bool)])
@@ -187,17 +187,24 @@ def create_hull(vertices):
     return np.rec.array(hull)
 
 def sort_hull(hull):
+    """Sort hull by edge length.
 
-    max_unprocessed_edge = hull[np.lexsort((-hull.length, hull.is_processed))][0]
-    idx = np.where(hull == max_unprocessed_edge)[0][0]
+    The hull is rotated such that the start vertex of the longest unprcoessed
+    edge is first.
+    """
+    max_unproc_edge = hull[np.lexsort((-hull.length, hull.is_processed))][0]
+    idx = np.where(hull == max_unproc_edge)[0][0]
 
     # shift convex hull to have the longest edge at the beginning
     hull = np.roll(hull, -idx, axis=0)
 
-    return hull, max_unprocessed_edge.length
+    return hull, max_unproc_edge.length
 
 def shrink_vertex(hull_vertices, inside):
+    """Shrink convex hull.
 
+    See Procedure 3.1 in the publication.
+    """
     hull = create_hull(hull_vertices)
     hull, max_edge_length = sort_hull(hull)
     avg_edge_length = average_distance(inside)
@@ -210,8 +217,7 @@ def shrink_vertex(hull_vertices, inside):
 
     all_points = np.append(inside, hull_vertices, axis=0)
 
-    while max_edge_length >= 2*avg_edge_length:
-        # shrinking
+    while max_edge_length >= 2 * avg_edge_length:
         V1 = hull[0].vertex
         V2 = hull[1].vertex
         V21 = V2 - V1
@@ -226,8 +232,8 @@ def shrink_vertex(hull_vertices, inside):
             # find closest point from x to the line between V1 and V2:
             # 1) its projection falls between V1 and V2
             # 2) it resides on the left of V1 and V2
-            # 3) the perpendicular line from P to the line between V1 and V2 doesn't
-            # have an intersection with other edges between vertices
+            # 3) the perpendicular line from P to the line between V1 and V2
+            # doesn't have an intersection with other edges between vertices
 
             PV1 = P - V1
             u = np.dot(PV1, V21) / V21dot
@@ -236,9 +242,8 @@ def shrink_vertex(hull_vertices, inside):
                 # 1) failed
                 continue
 
-            # NOTE: this only works for 2D
             M = np.vstack((np.array([V1, V2, P]).T,[1,1,1]))
-            if np.linalg.det(M) <= 0+eps: # allow some rounding error
+            if np.linalg.det(M) <= 0+eps:
                 # 2) failed
                 continue
 
@@ -250,28 +255,31 @@ def shrink_vertex(hull_vertices, inside):
             for i, edge in enumerate(edges):
 
                 if array_equal(P, edge[0]) or array_equal(P, edge[1]):
+                    # a point always intersects with its own edge
                     continue
 
-                has_intersection = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
-                if not has_intersection:
-                    # no intersection with this edge, therefore check next edge
+                has_intersec = seg_intersect(P, PPP, edge[0], edge[1]-edge[0])
+                if not has_intersec:
+                    # no intersection with this edge
                     continue
 
                 # we found an intersection. These are only allowed if the
                 # candidate vertex is either the V_last or V3...
-                if array_equal(P, hull[-1].vertex) or array_equal(P, hull[2].vertex):
+                if array_equal(P, hull[-1].vertex) or \
+                   array_equal(P, hull[2].vertex):
                     continue
 
                 # otherwise this is an invalid intersection
                 num_intersections += 1
                 if num_intersections > 1:
-                    # only one intersection can be found at max 
+                    # only one intersection is allowed at max 
                     # (see condition below)
                     break
-            
-            if num_intersections == 0 or (num_intersections == 1 and (
-                0-eps <= u <= 0+eps or 1-eps <= u <= 1+eps)):
-                # Add point if it has no intersection or the only intersection 
+
+            if num_intersections == 0 or \
+               num_intersections == 1 and (0-eps <= u <= 0+eps or \
+                                           1-eps <= u <= 1+eps):
+                # add point if it has no intersection or the only intersection 
                 # is at V1 or V2. This happens if u == 0 or u == 1.
                 candidates.append((P, dist(P, PP)))            
 
@@ -314,15 +322,13 @@ def release_vertices(vertex):
         if change:
             to_keep = list(set(range(num_vertices)) 
                            - set(to_release) - set(to_remove))
-            
+
             released = np.append(released, vertex[to_release], axis=0)
             vertex = vertex[to_keep]
 
     return vertex, released
 
 def points_within(points, vertex):
-    # NOTE: this only works for 2D
-
     if len(points) == 0:
         return np.array([])
 
@@ -384,7 +390,7 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
     # mark points that do not lie within any subcluster as released
     released = initial_cluster[np.where(~within_indices)]
-    
+
     return sub_clusters, sc_average_distances, released
 
 def parallel_step(initial_cluster):
@@ -410,7 +416,7 @@ def get_all_subclusters(initial_clusters):
     sc_average_distances = [average_distance for t in sc_tuples 
                                              for average_distance in t[1]]
     released = np.array([r for t in sc_tuples for r in t[2]])
-    
+
     return sub_clusters, sc_average_distances, released
 
 def cluster_distance(c1, c2):
@@ -463,7 +469,7 @@ def merge_clusters(sub_clusters, sc_average_distances):
 
 def add_released(clusters, average_distances, released):
     noise = None
-    
+
     for p in released:
         added = False
         for i, c in enumerate(clusters):
@@ -498,22 +504,35 @@ def kbcht(km, data, ax):
 
     clusters, contains_noise = \
         add_released(clusters, average_distances, released)
-    
+
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
-    
+
     return assignments, contains_noise
 
 
-############# entry points for the clustering algorithms framework #############
+############# entry points for the clustering algorithms framework ############
 
 def einfaches_clustering(data, k):
+    """Cluster data with KBCHT.
+
+    Arguments:
+    k -- number of clusters for the initial K-Means algorithm (NOTE: This does
+         not necessarily represents the final number of clusters)
+
+    """
     km = kmeans(data, k)
-    list_of_labels, contains_noise = kbcht(km, data, None)
+    list_of_labels, _ = kbcht(km, data)
     return list_of_labels
 
 def tolles_clustering_mit_visualisierung(data, k):
-    # TODO: implement
+    """Cluster data with KBCHT, including a visualization.
+
+    Arguments:
+    k -- number of clusters for the initial K-Means algorithm (NOTE: This does
+         not necessarily represents the final number of clusters)
+
+    """
     list_of_labels = []
     list_of_image_filenames = []
     return list_of_labels, list_of_image_filenames
@@ -547,13 +566,13 @@ if __name__ == "__main__":
             sys.exit(0)
 
     fig = plt.figure(figsize=[12, 4])
-    
+
     print('Load data')
     data, labels_true = load_data(file)
     clusters_true = create_clusters(data, labels_true)
     ax1 = fig.add_subplot(141)
     visualize(clusters_true, ax1, 'True Classes')
-    
+
     print('Perform k-means clustering')
     km = kmeans(data, k)
     labels_pred = km.predict(data)
@@ -562,7 +581,7 @@ if __name__ == "__main__":
     clusters_km = create_clusters(data, labels_pred)
     ax2 = fig.add_subplot(142)
     visualize(clusters_km, ax2, 'K-Means Clustering')
-    
+
     print('Perform KBCHT algorithm')
     ax3 = fig.add_subplot(143)
     labels_pred, contains_noise = kbcht(km, data, ax3)
@@ -571,7 +590,7 @@ if __name__ == "__main__":
     clusters_kbcht = create_clusters(data, labels_pred)
     ax4 = fig.add_subplot(144)
     visualize(clusters_kbcht, ax4, 'KBCHT Clustering', contains_noise)
-    
+
     print('Done')
     # show all plots
     plt.show()

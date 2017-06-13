@@ -1,8 +1,6 @@
 from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
 from multiprocessing import Pool
 import numpy as np
 from scipy.io.arff import loadarff
@@ -100,19 +98,12 @@ def visualize_vertices(vertices, clusters, released, title='', file_name='fig.pn
     ax = fig.add_subplot(111)
     ax.set_title(title)
 
-    # initialize color map
-    cm = plt.get_cmap('jet') # or hsv, brg, 
-    cnorm  = colors.Normalize(vmin=0, vmax=len(vertices))
-    scalar_map = cmx.ScalarMappable(norm=cnorm, cmap=cm)
-
     for c in range(len(vertices)):
-        color = scalar_map.to_rgba(c)
+        # plot all cluster points
+        ax.plot(clusters[c][:,0], clusters[c][:,1], '.')
 
-         # plot hull vertex connected by lines
-        ax.plot(vertices[c][:,0], vertices[c][:,1], 'x-', color=color)
-
-        # plot points inside
-        ax.plot(clusters[c][:,0], clusters[c][:,1], '.', color=color)
+        # plot hull vertex connected by lines
+        ax.plot(vertices[c][:,0], vertices[c][:,1], 'x-')
 
     # plot released points
     ax.plot(released[:,0], released[:,1], 'xk')

@@ -19,8 +19,8 @@ import os.path
 # tolerance with respect to floating point operations
 eps = 0.000001
 
-############################## utility functions ##############################
 
+############################## utility functions ##############################
 
 def load_data(file):
     all_data, meta = loadarff(file)
@@ -65,7 +65,12 @@ def save_fig(fig, file_name, dir_name="./"):
     fig.savefig(output_name)
 
 
-def visualize(data, title='', file_name=None, contains_noise=False):
+def visualize(data, title='', file_name='fig.png', contains_noise=False, 
+              vis_mode='no'):
+
+    if vis_mode == 'no':
+        return
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_title(title)
@@ -79,13 +84,18 @@ def visualize(data, title='', file_name=None, contains_noise=False):
     else:
         ax.plot(data[-1][:,0], data[-1][:,1], '.')
 
-    if file_name is not None:
+    if vis_mode == 'save':
         save_fig(fig, file_name)
-    else:
+    elif vis_mode == 'show':
         plt.show(block=False)
 
 
-def visualize_vertices(vertices, clusters, released, title='', file_name=None):
+def visualize_vertices(vertices, clusters, released, title='', file_name='fig.png', 
+                       vis_mode='no'):
+
+    if vis_mode == 'no':
+        return
+
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_title(title)
@@ -107,9 +117,9 @@ def visualize_vertices(vertices, clusters, released, title='', file_name=None):
     # plot released points
     ax.plot(released[:,0], released[:,1], 'xk')
 
-    if file_name is not None:
+    if vis_mode == 'save':
         save_fig(fig, file_name)
-    else:
+    elif vis_mode == 'show':
         plt.show(block=False)
 
 
@@ -145,8 +155,8 @@ def seg_intersect(p, r, q, s):
 
     return True
 
-############################### KBCHT algorithm ###############################
 
+############################### KBCHT algorithm ###############################
 
 def kmeans(data, k):
     km = KMeans(n_clusters=k).fit(data)
@@ -531,21 +541,34 @@ def add_released(clusters, average_distances, released):
     return clusters, noise is not None
 
 
-def kbcht(data):
+def kbcht(data, k, vis_mode='no'):
+    """Perform the KBCHT algorithm.
+
+    Arguments:
+    data     -- the input data
+    vis_mode -- 'no', 'save' or 'show', defining if visualizations should be
+                created and if they should be saved or shown
+
+    """
+    # perform k-Means for finding inital clusters
     km = kmeans(data, k)
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
-    visualize(initial_clusters, 'K-Means Clustering', 'kmeans_clustering.png')
 
+    visualize(initial_clusters, 'K-Means Clustering', 'kmeans_clustering.png', 
+              vis_mode=vis_mode)
+
+    # get subclusters from convex hulls and shrinking
     print('- Get all subclusters')
     sub_clusters, sc_average_distances, released, shrinked_vertices = \
         get_all_subclusters(initial_clusters)
 
     visualize_vertices(shrinked_vertices, initial_clusters, released,
-                       'Shrinked Vertices', 'shrinked_vertices.png')
+                       'Shrinked Vertices', 'shrinked_vertices.png', vis_mode)
     visualize(sub_clusters + [released], 'Subclusters', 'subclusters.png', 
-              contains_noise=True)
+              contains_noise=True, vis_mode=vis_mode)
 
+    # merge subclusters
     print('- Merge subclusters')
     clusters, average_distances = \
         merge_clusters(sub_clusters, sc_average_distances)
@@ -554,15 +577,15 @@ def kbcht(data):
         add_released(clusters, average_distances, released)
 
     visualize(clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
-              contains_noise=contains_noise)
+              contains_noise=contains_noise, vis_mode=vis_mode)
 
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
 
     return assignments
 
-############# entry points for the clustering algorithms framework ############
 
+############# entry points for the clustering algorithms framework ############
 
 def einfaches_clustering(data, k):
     """Cluster data with KBCHT.
@@ -572,7 +595,7 @@ def einfaches_clustering(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    list_of_labels = kbcht(data)
+    list_of_labels = kbcht(data, k, vis_mode='no')
     return list_of_labels
 
 
@@ -584,7 +607,7 @@ def tolles_clustering_mit_visualisierung(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    list_of_labels = kbcht(data)
+    list_of_labels = kbcht(data, k, vis_mode='save')
     list_of_image_filenames = ["kmeans_clustering.png",
                                "shrinked_vertices.png",
                                "subclusters.png",
@@ -592,6 +615,8 @@ def tolles_clustering_mit_visualisierung(data, k):
 
     return list_of_labels, list_of_image_filenames
 
+
+#################### entry point for command line execution ###################
 
 if __name__ == "__main__":
     '''
@@ -623,10 +648,10 @@ if __name__ == "__main__":
     print('Load data')
     data, labels_true = load_data(file)
     clusters_true = create_clusters(data, labels_true)
-    visualize(clusters_true, 'True Classes')
+    visualize(clusters_true, 'True Classes', vis_mode='show')
 
     print('Perform KBCHT algorithm')
-    labels_pred = kbcht(data)
+    labels_pred = kbcht(data, k, vis_mode='show')
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
 

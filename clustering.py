@@ -403,9 +403,7 @@ def parallel_step(initial_cluster):
     return sub_clusters, sc_average_distances, released
 
 def get_all_subclusters(initial_clusters):
-    pool = Pool()
-    sc_tuples = pool.map(parallel_step, initial_clusters)
-    pool.close()
+    sc_tuples = [parallel_step(ic) for ic in initial_clusters]
 
     # reorganize outputs into separate flattened lists
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]

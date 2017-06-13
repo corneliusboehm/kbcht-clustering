@@ -456,10 +456,7 @@ def get_all_subclusters(initial_clusters):
     released = np.array([r for t in sc_tuples for r in t[2]])
     shrinked_vertices = [t[3] for t in sc_tuples]
 
-    visualize_vertices(shrinked_vertices, initial_clusters, released,
-                       'Shrinked Vertices', 'shrinked_vertices.png')
-
-    return sub_clusters, sc_average_distances, released
+    return sub_clusters, sc_average_distances, released, shrinked_vertices
 
 
 def cluster_distance(c1, c2):
@@ -541,9 +538,11 @@ def kbcht(data):
     visualize(initial_clusters, 'K-Means Clustering', 'kmeans_clustering.png')
 
     print('- Get all subclusters')
-    sub_clusters, sc_average_distances, released = \
+    sub_clusters, sc_average_distances, released, shrinked_vertices = \
         get_all_subclusters(initial_clusters)
 
+    visualize_vertices(shrinked_vertices, initial_clusters, released,
+                       'Shrinked Vertices', 'shrinked_vertices.png')
     visualize(sub_clusters + [released], 'Subclusters', 'subclusters.png', 
               contains_noise=True)
 
@@ -554,10 +553,13 @@ def kbcht(data):
     clusters, contains_noise = \
         add_released(clusters, average_distances, released)
 
+    visualize(clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
+              contains_noise=contains_noise)
+
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
 
-    return assignments, contains_noise
+    return assignments
 
 ############# entry points for the clustering algorithms framework ############
 
@@ -570,28 +572,24 @@ def einfaches_clustering(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    list_of_labels, _ = kbcht(data)
+    list_of_labels = kbcht(data)
     return list_of_labels
 
 
 def tolles_clustering_mit_visualisierung(data, k):
-    """Cluster data with KBCHT, including a visualization.
+    """Cluster data with KBCHT, including visualizations.
 
     Arguments:
     k -- number of clusters for the initial K-Means algorithm (NOTE: This does
          not necessarily represents the final number of clusters)
 
     """
-    list_of_labels, contains_noise = kbcht(data)
-
-    kbcht_clusters = create_clusters(data, list_of_labels)
-    visualize(kbcht_clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
-              contains_noise=contains_noise)
-
+    list_of_labels = kbcht(data)
     list_of_image_filenames = ["kmeans_clustering.png",
                                "shrinked_vertices.png",
                                "subclusters.png",
                                "kbcht_clustering.png"]
+
     return list_of_labels, list_of_image_filenames
 
 
@@ -628,11 +626,9 @@ if __name__ == "__main__":
     visualize(clusters_true, 'True Classes')
 
     print('Perform KBCHT algorithm')
-    labels_pred, contains_noise = kbcht(data)
+    labels_pred = kbcht(data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
-    clusters_kbcht = create_clusters(data, labels_pred)
-    visualize(clusters_kbcht, 'KBCHT Clustering', contains_noise=contains_noise)
 
     print('Done')
     # wait for plots to be closed

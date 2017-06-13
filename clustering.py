@@ -11,6 +11,7 @@ from scipy.spatial.distance import cdist, pdist
 from sklearn import metrics
 from sklearn.cluster import KMeans
 import sys
+import os.path
 
 
 ############################# internal parameters #############################
@@ -59,52 +60,34 @@ def evaluate(labels_true, labels_pred):
     return metrics.adjusted_rand_score(labels_true, labels_pred)
 
 
-def visualize(data, ax=None, title='', contains_noise=False):
-    if ax is None:
-        # create a new axis if no existing one is provided
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+def save_fig(fig, file_name, dir_name="./"):
+    output_name = os.path.join(dir_name, file_name)
+    fig.savefig(output_name)
 
+
+def visualize(data, title='', file_name=None, contains_noise=False):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
     ax.set_title(title)
 
-    if type(data) == np.ndarray:
-        # there is only one cluster -> plot directly
-        if contains_noise:
-            ax.plot(data[:,0], data[:,1], 'xk')
-        else:
-            ax.plot(data[:,0], data[:,1], '.')
+    for c in range(len(data)-1):
+        ax.plot(data[c][:,0], data[c][:,1], '.')
+
+    if contains_noise:
+        # last cluster is noise
+        ax.plot(data[-1][:,0], data[-1][:,1], 'xk')
     else:
-        # there are multiple clusters -> plot each one in a different color
-        for c in range(len(data)-1):
-            ax.plot(data[c][:,0], data[c][:,1], '.')
+        ax.plot(data[-1][:,0], data[-1][:,1], '.')
 
-        if contains_noise:
-            # last cluster is noise
-            ax.plot(data[-1][:,0], data[-1][:,1], 'xk')
-        else:
-            ax.plot(data[-1][:,0], data[-1][:,1], '.')
+    if file_name is not None:
+        save_fig(fig, file_name)
+    else:
+        plt.show(block=False)
 
 
-def visualize_vertex(vertex, inside, ax=None, title=''):
-    if ax is None:
-        # create a new axis if no existing one is provided
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
-    ax.set_title(title)
-
-    # plot hull vertex connected by lines
-    ax.plot(vertex[:,0], vertex[:,1], 'x-')
-
-    # plot points inside
-    ax.plot(inside[:,0], inside[:,1], '.')
-
-def visualize_vertices(vertices, clusters, released, ax=None, title=''):
-    if ax is None:
-        # create a new axis if no existing one is provided
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
+def visualize_vertices(vertices, clusters, released, title='', file_name=None):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
     ax.set_title(title)
 
     # initialize color map
@@ -123,6 +106,12 @@ def visualize_vertices(vertices, clusters, released, ax=None, title=''):
 
     # plot released points
     ax.plot(released[:,0], released[:,1], 'xk')
+
+    if file_name is not None:
+        save_fig(fig, file_name)
+    else:
+        plt.show(block=False)
+
 
 def cross2D(v, w):
     return v[0]*w[1] - v[1]*w[0]
@@ -447,7 +436,6 @@ def parallel_step(initial_cluster):
     print('  - Shrink vertex')
     shrinked_vertex, released_hulls = shrink_vertex(initial_vertex, inside)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
-
     released = np.append(released, released_hulls, axis=0)
 
     print('  - Find subclusters')
@@ -469,9 +457,7 @@ def get_all_subclusters(initial_clusters):
     shrinked_vertices = [t[3] for t in sc_tuples]
 
     visualize_vertices(shrinked_vertices, initial_clusters, released,
-                       title='Shrinked Vertices')
-    plt.savefig("shrinked_vertices.png")
-    plt.cla()
+                       'Shrinked Vertices', 'shrinked_vertices.png')
 
     return sub_clusters, sc_average_distances, released
 
@@ -548,7 +534,7 @@ def add_released(clusters, average_distances, released):
     return clusters, noise is not None
 
 
-def kbcht(km, data, ax=None):
+def kbcht(km, data):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
 
@@ -556,8 +542,8 @@ def kbcht(km, data, ax=None):
     sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
 
-    if ax:
-        visualize(sub_clusters+[released], ax, 'Subclusters', contains_noise=True)
+    visualize(sub_clusters + [released], 'Subclusters', 'subclusters.png', 
+              contains_noise=True)
 
     print('- Merge subclusters')
     clusters, average_distances = \
@@ -598,16 +584,14 @@ def tolles_clustering_mit_visualisierung(data, k):
     km = kmeans(data, k)
     km_labels_pred = km.predict(data)
     km_clusters = create_clusters(data, km_labels_pred)
-    visualize(km_clusters, title='K-Means Clustering')
-    plt.savefig("kmeans_clustering.png")
-    plt.cla()
-    list_of_labels, contains_noise = kbcht(km, data, ax=plt.gca())
-    plt.savefig("subclusters.png")
-    plt.cla()
+    visualize(km_clusters, 'K-Means Clustering', 'kmeans_clustering.png')
+    
+    list_of_labels, contains_noise = kbcht(km, data)
+
     kbcht_clusters = create_clusters(data, list_of_labels)
-    visualize(kbcht_clusters, title='KBCHT Clustering', contains_noise=contains_noise)
-    plt.savefig("kbcht_clustering.png")
-    plt.cla()
+    visualize(kbcht_clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
+              contains_noise=contains_noise)
+
     list_of_image_filenames = ["kmeans_clustering.png",
                                "shrinked_vertices.png",
                                "subclusters.png",
@@ -642,13 +626,10 @@ if __name__ == "__main__":
                   '           FILE - Input file')
             sys.exit(0)
 
-    fig = plt.figure(figsize=[12, 4])
-
     print('Load data')
     data, labels_true = load_data(file)
     clusters_true = create_clusters(data, labels_true)
-    ax1 = fig.add_subplot(141)
-    visualize(clusters_true, ax1, 'True Classes')
+    visualize(clusters_true, 'True Classes')
 
     print('Perform k-means clustering')
     km = kmeans(data, k)
@@ -656,18 +637,15 @@ if __name__ == "__main__":
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
     clusters_km = create_clusters(data, labels_pred)
-    ax2 = fig.add_subplot(142)
-    visualize(clusters_km, ax2, 'K-Means Clustering')
+    visualize(clusters_km, 'K-Means Clustering')
 
     print('Perform KBCHT algorithm')
-    ax3 = fig.add_subplot(143)
-    labels_pred, contains_noise = kbcht(km, data, ax3)
+    labels_pred, contains_noise = kbcht(km, data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
     clusters_kbcht = create_clusters(data, labels_pred)
-    ax4 = fig.add_subplot(144)
-    visualize(clusters_kbcht, ax4, 'KBCHT Clustering', contains_noise)
+    visualize(clusters_kbcht, 'KBCHT Clustering', contains_noise=contains_noise)
 
     print('Done')
-    # show all plots
+    # wait for plots to be closed
     plt.show()

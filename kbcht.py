@@ -167,7 +167,7 @@ def kmeans(data, k):
 
 def convex_hull(initial_cluster):
     if len(initial_cluster) < 3:
-        return initial_cluster, np.array([])
+        return initial_cluster, np.zeros((0, 2))
 
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
@@ -258,6 +258,10 @@ def shrink_vertex(hull_vertices, inside, shrinking_threshold):
         return new_hull_vertices, np.append(released, hull_vertices, axis=0)
 
     all_points = np.append(inside, hull_vertices, axis=0)
+
+    if len(all_points) < 3:
+        # nothing to shrink
+        return hull.vertex, np.zeros((0, 2))
 
     while max_edge_length >= shrinking_threshold * avg_edge_length:
         V1 = hull[0].vertex
@@ -395,8 +399,9 @@ def remove_duplicates(cluster):
 
 def find_sub_clusters(shrinked_vertex, initial_cluster):
     # append last vertex point to the end to close the loop
-    shrinked_vertex = np.append(shrinked_vertex,
-                                [shrinked_vertex[0]], axis=0)
+    if len(shrinked_vertex) > 0:
+        shrinked_vertex = np.append(shrinked_vertex,
+                                    [shrinked_vertex[0]], axis=0)
 
     num_vertices = len(shrinked_vertex)
     cluster_indices = np.zeros(num_vertices)

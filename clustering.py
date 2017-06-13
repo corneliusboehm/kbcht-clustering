@@ -489,7 +489,7 @@ def add_released(clusters, average_distances, released):
 
     return clusters, noise is not None
 
-def kbcht(km, data, ax):
+def kbcht(km, data, ax=None):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
 
@@ -497,7 +497,8 @@ def kbcht(km, data, ax):
     sub_clusters, sc_average_distances, released = \
         get_all_subclusters(initial_clusters)
 
-    visualize(sub_clusters+[released], ax, 'Subclusters', contains_noise=True)
+    if ax:
+        visualize(sub_clusters+[released], ax, 'Subclusters', contains_noise=True)
 
     print('- Merge subclusters')
     clusters, average_distances = \
@@ -534,8 +535,22 @@ def tolles_clustering_mit_visualisierung(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    list_of_labels = []
-    list_of_image_filenames = []
+    km = kmeans(data, k)
+    km_labels_pred = km.predict(data)
+    km_clusters = create_clusters(data, km_labels_pred)
+    visualize(km_clusters, plt.gca(), 'K-Means Clustering')
+    plt.savefig("kmeans_clustering.png")
+    plt.cla()
+    list_of_labels, contains_noise = kbcht(km, data, ax=plt.gca())
+    plt.savefig("subclusters.png")
+    plt.gca()
+    kbcht_clusters = create_clusters(data, list_of_labels)
+    visualize(kbcht_clusters, plt.gca(), 'KBCHT Clustering', contains_noise)
+    plt.savefig("kbcht_clustering.png")
+    plt.cla()
+    list_of_image_filenames = ["kmeans_clustering.png", 
+                               "subclusters.png", 
+                               "kbcht_clustering.png"]
     return list_of_labels, list_of_image_filenames
 
 

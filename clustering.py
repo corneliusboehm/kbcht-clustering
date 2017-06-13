@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+"""KBCHT clustering algorithm.
+
+The algorithm in this program is based on work from the following paper:
+Kmeans-Based Convex Hull Triangulation Clustering Algorithm [Abubaker, Hamad, 2012]
+
+It can be found here: http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
+"""
 from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
@@ -11,12 +19,8 @@ from sklearn.cluster import KMeans
 import sys
 import os.path
 
-"""
-The algorithm in this program is based on work from the following paper:
-Kmeans-Based Convex Hull Triangulation Clustering Algorithm [Abubaker, Hamad, 2012]
-
-It can be found here: http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
-"""
+__author__ = "Tim Sabsch, Cornelius Styp von Rekowski"
+__email__ = "tim.sabsch@ovgu.de, cornelius.styp@ovgu.de"
 
 
 ############################# internal parameters #############################

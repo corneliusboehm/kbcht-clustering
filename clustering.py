@@ -11,6 +11,13 @@ from sklearn.cluster import KMeans
 import sys
 import os.path
 
+"""
+The algorithm in this program is based on work from the following paper:
+Kmeans-Based Convex Hull Triangulation Clustering Algorithm [Abubaker, Hamad, 2012]
+
+It can be found here: http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
+"""
+
 
 ############################# internal parameters #############################
 
@@ -231,7 +238,7 @@ def sort_hull(hull):
     return hull, max_unproc_edge.length
 
 
-def shrink_vertex(hull_vertices, inside):
+def shrink_vertex(hull_vertices, inside, shrinking_threshold):
     """Shrink convex hull.
 
     See Procedure 3.1 in the publication.
@@ -248,7 +255,7 @@ def shrink_vertex(hull_vertices, inside):
 
     all_points = np.append(inside, hull_vertices, axis=0)
 
-    while max_edge_length >= 2 * avg_edge_length:
+    while max_edge_length >= shrinking_threshold * avg_edge_length:
         V1 = hull[0].vertex
         V2 = hull[1].vertex
         V21 = V2 - V1
@@ -430,12 +437,13 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
     return sub_clusters, sc_average_distances, released
 
 
-def parallel_step(initial_cluster):
+def parallel_step(initial_cluster, shrinking_threshold):
     print('  - Find convex hull')
     initial_vertex, inside = convex_hull(initial_cluster)
 
     print('  - Shrink vertex')
-    shrinked_vertex, released_hulls = shrink_vertex(initial_vertex, inside)
+    shrinked_vertex, released_hulls = \
+        shrink_vertex(initial_vertex, inside, shrinking_threshold)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
     released = np.append(released, released_hulls, axis=0)
 
@@ -447,8 +455,8 @@ def parallel_step(initial_cluster):
     return sub_clusters, sc_average_distances, released, shrinked_vertex
 
 
-def get_all_subclusters(initial_clusters):
-    sc_tuples = [parallel_step(ic) for ic in initial_clusters]
+def get_all_subclusters(initial_clusters, shrinking_threshold):
+    sc_tuples = [parallel_step(ic, shrinking_threshold) for ic in initial_clusters]
 
     # reorganize outputs into separate flattened lists
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
@@ -532,15 +540,25 @@ def add_released(clusters, average_distances, released):
     return clusters, noise is not None
 
 
-def kbcht(data, k, vis_mode='no'):
+def kbcht(data, k=10, shrinking_threshold=2, vis_mode='no'):
     """Perform the KBCHT algorithm.
 
     Arguments:
-    data     -- the input data
-    vis_mode -- 'no', 'save' or 'show', defining if visualizations should be
-                created and if they should be saved or shown
+    data                -- the input data without class labels
+    k                   -- number of clusters for the initial K-Means algorithm 
+                           (NOTE: This does not necessarily represent the final 
+                           number of clusters)
+    shrinking_threshold -- threshold factor defining how long to continue 
+                           shrinking with respect to the average edge length.
+                           Must be > 0.
+    vis_mode            -- 'no', 'save' or 'show', defining if visualizations 
+                           should be created and if they should be saved or shown
 
     """
+    if k < 0 or shrinking_threshold < 0:
+        print('Invalid parameters! Aborting.')
+        return []
+
     # perform k-Means for finding inital clusters
     km = kmeans(data, k)
     km_clusters = km.predict(data)
@@ -552,7 +570,7 @@ def kbcht(data, k, vis_mode='no'):
     # get subclusters from convex hulls and shrinking
     print('- Get all subclusters')
     sub_clusters, sc_average_distances, released, shrinked_vertices = \
-        get_all_subclusters(initial_clusters)
+        get_all_subclusters(initial_clusters, shrinking_threshold)
 
     visualize_vertices(shrinked_vertices, initial_clusters, released,
                        'Shrinked Vertices', 'shrinked_vertices.png', vis_mode)
@@ -578,27 +596,37 @@ def kbcht(data, k, vis_mode='no'):
 
 ############# entry points for the clustering algorithms framework ############
 
-def einfaches_clustering(data, k):
+def einfaches_clustering(data, k=10, shrinking_threshold=2):
     """Cluster data with KBCHT.
 
     Arguments:
-    k -- number of clusters for the initial K-Means algorithm (NOTE: This does
-         not necessarily represents the final number of clusters)
+    data                -- the input data without class labels
+    k                   -- number of clusters for the initial K-Means algorithm 
+                           (NOTE: This does not necessarily represent the final 
+                           number of clusters)
+    shrinking_threshold -- threshold factor defining how long to continue 
+                           shrinking with respect to the average edge length.
+                           Must be > 0.
 
     """
-    list_of_labels = kbcht(data, k, vis_mode='no')
+    list_of_labels = kbcht(data, k, shrinking_threshold, vis_mode='no')
     return list_of_labels
 
 
-def tolles_clustering_mit_visualisierung(data, k):
+def tolles_clustering_mit_visualisierung(data, k=10, shrinking_threshold=2):
     """Cluster data with KBCHT, including visualizations.
 
     Arguments:
-    k -- number of clusters for the initial K-Means algorithm (NOTE: This does
-         not necessarily represents the final number of clusters)
+    data                -- the input data without class labels
+    k                   -- number of clusters for the initial K-Means algorithm 
+                           (NOTE: This does not necessarily represent the final 
+                           number of clusters)
+    shrinking_threshold -- threshold factor defining how long to continue 
+                           shrinking with respect to the average edge length.
+                           Must be > 0.
 
     """
-    list_of_labels = kbcht(data, k, vis_mode='save')
+    list_of_labels = kbcht(data, k, shrinking_threshold, vis_mode='save')
     list_of_image_filenames = ["kmeans_clustering.png",
                                "shrinked_vertices.png",
                                "subclusters.png",

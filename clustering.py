@@ -419,8 +419,10 @@ def parallel_step(initial_cluster):
     initial_vertex, inside = convex_hull(initial_cluster)
 
     print('  - Shrink vertex')
-    shrinked_vertex, _ = shrink_vertex(initial_vertex, inside)
+    shrinked_vertex, released_hulls = shrink_vertex(initial_vertex, inside)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
+
+    released = np.append(released, released_hulls, axis=0)
 
     print('  - Find subclusters')
     sub_clusters, sc_average_distances, sc_released = \
@@ -564,14 +566,14 @@ def tolles_clustering_mit_visualisierung(data, k):
     km = kmeans(data, k)
     km_labels_pred = km.predict(data)
     km_clusters = create_clusters(data, km_labels_pred)
-    visualize(km_clusters, plt.gca(), 'K-Means Clustering')
+    visualize(km_clusters, title='K-Means Clustering')
     plt.savefig("kmeans_clustering.png")
     plt.cla()
     list_of_labels, contains_noise = kbcht(km, data, ax=plt.gca())
     plt.savefig("subclusters.png")
-    plt.gca()
+    plt.cla()
     kbcht_clusters = create_clusters(data, list_of_labels)
-    visualize(kbcht_clusters, plt.gca(), 'KBCHT Clustering', contains_noise)
+    visualize(kbcht_clusters, title='KBCHT Clustering', contains_noise=contains_noise)
     plt.savefig("kbcht_clustering.png")
     plt.cla()
     list_of_image_filenames = ["kmeans_clustering.png",

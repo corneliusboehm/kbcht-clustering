@@ -1,6 +1,8 @@
 from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 from multiprocessing import Pool
 import numpy as np
 from scipy.io.arff import loadarff
@@ -11,7 +13,7 @@ from sklearn.cluster import KMeans
 import sys
 
 
-############################## internal parameter #############################
+############################# internal parameters #############################
 
 # tolerance with respect to floating point operations
 eps = 0.000001
@@ -97,6 +99,30 @@ def visualize_vertex(vertex, inside, ax=None, title=''):
     # plot points inside
     ax.plot(inside[:,0], inside[:,1], '.')
 
+def visualize_vertices(vertices, clusters, released, ax=None, title=''):
+    if ax is None:
+        # create a new axis if no existing one is provided
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    ax.set_title(title)
+
+    # initialize color map
+    cm = plt.get_cmap('jet') # or hsv, brg, 
+    cnorm  = colors.Normalize(vmin=0, vmax=len(vertices))
+    scalar_map = cmx.ScalarMappable(norm=cnorm, cmap=cm)
+
+    for c in range(len(vertices)):
+        color = scalar_map.to_rgba(c)
+
+         # plot hull vertex connected by lines
+        ax.plot(vertices[c][:,0], vertices[c][:,1], 'x-', color=color)
+
+        # plot points inside
+        ax.plot(clusters[c][:,0], clusters[c][:,1], '.', color=color)
+
+    # plot released points
+    ax.plot(released[:,0], released[:,1], 'xk')
 
 def cross2D(v, w):
     return v[0]*w[1] - v[1]*w[0]
@@ -429,7 +455,7 @@ def parallel_step(initial_cluster):
         find_sub_clusters(shrinked_vertex, initial_cluster)
     released = np.append(released, sc_released, axis=0)
 
-    return sub_clusters, sc_average_distances, released
+    return sub_clusters, sc_average_distances, released, shrinked_vertex
 
 
 def get_all_subclusters(initial_clusters):
@@ -440,6 +466,12 @@ def get_all_subclusters(initial_clusters):
     sc_average_distances = [average_distance for t in sc_tuples
                                              for average_distance in t[1]]
     released = np.array([r for t in sc_tuples for r in t[2]])
+    shrinked_vertices = [t[3] for t in sc_tuples]
+
+    visualize_vertices(shrinked_vertices, initial_clusters, released,
+                       title='Shrinked Vertices')
+    plt.savefig("shrinked_vertices.png")
+    plt.cla()
 
     return sub_clusters, sc_average_distances, released
 
@@ -577,6 +609,7 @@ def tolles_clustering_mit_visualisierung(data, k):
     plt.savefig("kbcht_clustering.png")
     plt.cla()
     list_of_image_filenames = ["kmeans_clustering.png",
+                               "shrinked_vertices.png",
                                "subclusters.png",
                                "kbcht_clustering.png"]
     return list_of_labels, list_of_image_filenames

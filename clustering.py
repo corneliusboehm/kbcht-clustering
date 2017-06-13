@@ -534,9 +534,11 @@ def add_released(clusters, average_distances, released):
     return clusters, noise is not None
 
 
-def kbcht(km, data):
+def kbcht(data):
+    km = kmeans(data, k)
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
+    visualize(initial_clusters, 'K-Means Clustering', 'kmeans_clustering.png')
 
     print('- Get all subclusters')
     sub_clusters, sc_average_distances, released = \
@@ -568,8 +570,7 @@ def einfaches_clustering(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    km = kmeans(data, k)
-    list_of_labels, _ = kbcht(km, data)
+    list_of_labels, _ = kbcht(data)
     return list_of_labels
 
 
@@ -581,12 +582,7 @@ def tolles_clustering_mit_visualisierung(data, k):
          not necessarily represents the final number of clusters)
 
     """
-    km = kmeans(data, k)
-    km_labels_pred = km.predict(data)
-    km_clusters = create_clusters(data, km_labels_pred)
-    visualize(km_clusters, 'K-Means Clustering', 'kmeans_clustering.png')
-    
-    list_of_labels, contains_noise = kbcht(km, data)
+    list_of_labels, contains_noise = kbcht(data)
 
     kbcht_clusters = create_clusters(data, list_of_labels)
     visualize(kbcht_clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
@@ -631,16 +627,8 @@ if __name__ == "__main__":
     clusters_true = create_clusters(data, labels_true)
     visualize(clusters_true, 'True Classes')
 
-    print('Perform k-means clustering')
-    km = kmeans(data, k)
-    labels_pred = km.predict(data)
-    e = evaluate(labels_true, labels_pred)
-    print('Score: {}'.format(e))
-    clusters_km = create_clusters(data, labels_pred)
-    visualize(clusters_km, 'K-Means Clustering')
-
     print('Perform KBCHT algorithm')
-    labels_pred, contains_noise = kbcht(km, data)
+    labels_pred, contains_noise = kbcht(data)
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
     clusters_kbcht = create_clusters(data, labels_pred)

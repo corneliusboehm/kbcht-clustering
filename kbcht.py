@@ -472,6 +472,8 @@ def get_all_subclusters(initial_clusters, shrinking_threshold):
     sc_average_distances = [average_distance for t in sc_tuples
                                              for average_distance in t[1]]
     released = np.array([r for t in sc_tuples for r in t[2]])
+    if len(released) == 0:
+        released = np.zeros((0,2))
     shrinked_vertices = [t[3] for t in sc_tuples]
 
     return sub_clusters, sc_average_distances, released, shrinked_vertices
@@ -580,7 +582,7 @@ def kbcht(data, k=10, shrinking_threshold=2, vis_mode='no'):
     print('- Get all subclusters')
     sub_clusters, sc_average_distances, released, shrinked_vertices = \
         get_all_subclusters(initial_clusters, shrinking_threshold)
-
+    
     visualize_vertices(shrinked_vertices, initial_clusters, released,
                        'Shrinked Vertices', 'shrinked_vertices.png', vis_mode)
     visualize(sub_clusters + [released], 'Subclusters', 'subclusters.png', 
@@ -679,10 +681,11 @@ if __name__ == "__main__":
     visualize(clusters_true, 'True Classes', vis_mode='show')
 
     print('Perform KBCHT algorithm')
-    labels_pred = kbcht(data, k, vis_mode='show')
+    labels_pred = kbcht(data, k, 2, vis_mode='show')
     e = evaluate(labels_true, labels_pred)
     print('Score: {}'.format(e))
 
     print('Done')
     # wait for plots to be closed
     plt.show()
+

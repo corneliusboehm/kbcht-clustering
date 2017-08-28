@@ -4,7 +4,6 @@ from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import numpy as np
-from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
 from scipy.spatial.distance import cdist, pdist
 from sklearn.base import BaseEstimator, ClusterMixin

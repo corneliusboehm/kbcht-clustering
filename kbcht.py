@@ -118,7 +118,8 @@ def kmeans(data, k):
 def convex_hull(initial_cluster):
     if len(initial_cluster) < 3:
         return initial_cluster, np.zeros((0, 2))
-
+    
+    # TODO: Can there still be an error?
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
     inside_indices = list(set(range(len(initial_cluster))) -
@@ -526,9 +527,14 @@ def kbcht(data, k=10, shrinking_threshold=2):
         Matplotlib figures of the cluster assignments for each step of the
         algorithm.
     """
-    if k < 0 or shrinking_threshold < 0:
-        print('Invalid parameters! Aborting.')
-        return []
+    if k <= 0:
+        raise ValueError('k={} must be > 0'.format(k))
+    
+    if shrinking_threshold <= 0:
+        raise ValueError('shrinking_threshold={} must be > 0'
+                         .format(shrinking_threshold))
+    
+    # TODO: Check, if the given data is 2-dimensional
 
     # perform k-Means for finding inital clusters
     km = kmeans(data, k)
@@ -616,4 +622,6 @@ class KBCHT(BaseEstimator, ClusterMixin):
         self.labels_, self.visualizations = \
             kbcht(X, self.k, self.shrinking_threshold)
         return self
+
+# TODO: Add an example?
 

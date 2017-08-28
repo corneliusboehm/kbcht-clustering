@@ -1,23 +1,14 @@
 #!/usr/bin/env python
-"""KBCHT clustering algorithm.
 
-The algorithm in this program is based on work from the following paper:
-Kmeans-Based Convex Hull Triangulation Clustering Algorithm [Abubaker, Hamad, 2012]
-
-It can be found here: http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
-"""
 from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
-from multiprocessing import Pool
 import numpy as np
 from scipy.io.arff import loadarff
 from scipy.spatial import ConvexHull, Delaunay
 from scipy.spatial.distance import cdist, pdist
-from sklearn import metrics
+from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.cluster import KMeans
-import sys
-import os.path
 
 __author__ = "Tim Sabsch, Cornelius Styp von Rekowski"
 __email__ = "tim.sabsch@ovgu.de, cornelius.styp@ovgu.de"
@@ -30,23 +21,6 @@ eps = 0.000001
 
 
 ############################## utility functions ##############################
-
-def load_data(file):
-    all_data, meta = loadarff(file)
-
-    # split data and class attribute, assuming class is the last column
-    # TODO: Dynamically check for index of class attribute
-    data = np.array([e.tolist()[:-1] for e in all_data])
-    labels = np.array([int(e.tolist()[-1]) for e in all_data])
-
-    # only use first two attributes, because KBCHT only works in 2D
-    if data.shape[1] > 2:
-        print('Only keeping attributes {}, because KBCHT works in 2D'
-              .format(meta.names()[:2]))
-        data = data[:, :2]
-
-    return data, labels
-
 
 def create_clusters(data, assignments):
     return [data[assignments == i] for i in np.unique(assignments)]
@@ -65,20 +39,7 @@ def create_assignments(orig_data, clusters):
     return assignments
 
 
-def evaluate(labels_true, labels_pred):
-    return metrics.adjusted_rand_score(labels_true, labels_pred)
-
-
-def save_fig(fig, file_name, dir_name="./"):
-    output_name = os.path.join(dir_name, file_name)
-    fig.savefig(output_name)
-
-
-def visualize(data, title='', file_name='fig.png', contains_noise=False, 
-              vis_mode='no'):
-
-    if vis_mode == 'no':
-        return
+def visualize(data, title='', contains_noise=False):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -93,17 +54,10 @@ def visualize(data, title='', file_name='fig.png', contains_noise=False,
     else:
         ax.plot(data[-1][:,0], data[-1][:,1], '.')
 
-    if vis_mode == 'save':
-        save_fig(fig, file_name)
-    elif vis_mode == 'show':
-        plt.show(block=False)
+    return fig
 
 
-def visualize_vertices(vertices, clusters, released, title='', file_name='fig.png', 
-                       vis_mode='no'):
-
-    if vis_mode == 'no':
-        return
+def visualize_vertices(vertices, clusters, released, title=''):
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -119,10 +73,7 @@ def visualize_vertices(vertices, clusters, released, title='', file_name='fig.pn
     # plot released points
     ax.plot(released[:,0], released[:,1], 'xk')
 
-    if vis_mode == 'save':
-        save_fig(fig, file_name)
-    elif vis_mode == 'show':
-        plt.show(block=False)
+    return fig
 
 
 def cross2D(v, w):
@@ -447,16 +398,16 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
 
 def parallel_step(initial_cluster, shrinking_threshold):
-    print('  - Find convex hull')
+    # print('  - Find convex hull')
     initial_vertex, inside = convex_hull(initial_cluster)
 
-    print('  - Shrink vertex')
+    # print('  - Shrink vertex')
     shrinked_vertex, released_hulls = \
         shrink_vertex(initial_vertex, inside, shrinking_threshold)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
     released = np.append(released, released_hulls, axis=0)
 
-    print('  - Find subclusters')
+    # print('  - Find subclusters')
     sub_clusters, sc_average_distances, sc_released = \
         find_sub_clusters(shrinked_vertex, initial_cluster)
     released = np.append(released, sc_released, axis=0)
@@ -551,20 +502,17 @@ def add_released(clusters, average_distances, released):
     return clusters, noise is not None
 
 
-def kbcht(data, k=10, shrinking_threshold=2, vis_mode='no'):
+def kbcht(data, k=10, shrinking_threshold=2):
     """Perform the KBCHT algorithm.
 
     Arguments:
     data                -- the input data without class labels
-    k                   -- number of clusters for the initial K-Means algorithm 
-                           (NOTE: This does not necessarily represent the final 
+    k                   -- number of clusters for the initial K-Means algorithm
+                           (NOTE: This does not necessarily represent the final
                            number of clusters)
-    shrinking_threshold -- threshold factor defining how long to continue 
+    shrinking_threshold -- threshold factor defining how long to continue
                            shrinking with respect to the average edge length.
                            Must be > 0.
-    vis_mode            -- 'no', 'save' or 'show', defining if visualizations 
-                           should be created and if they should be saved or shown
-
     """
     if k < 0 or shrinking_threshold < 0:
         print('Invalid parameters! Aborting.')
@@ -575,29 +523,30 @@ def kbcht(data, k=10, shrinking_threshold=2, vis_mode='no'):
     km_clusters = km.predict(data)
     initial_clusters = create_clusters(data, km_clusters)
 
-    visualize(initial_clusters, 'K-Means Clustering', 'kmeans_clustering.png', 
-              vis_mode=vis_mode)
+    visualizations = []
+
+    visualizations.append(visualize(initial_clusters, 'K-Means Clustering'))
 
     # get subclusters from convex hulls and shrinking
-    print('- Get all subclusters')
+    # print('- Get all subclusters')
     sub_clusters, sc_average_distances, released, shrinked_vertices = \
         get_all_subclusters(initial_clusters, shrinking_threshold)
-    
-    visualize_vertices(shrinked_vertices, initial_clusters, released,
-                       'Shrinked Vertices', 'shrinked_vertices.png', vis_mode)
-    visualize(sub_clusters + [released], 'Subclusters', 'subclusters.png', 
-              contains_noise=True, vis_mode=vis_mode)
+
+    visualizations.append(visualize_vertices(
+        shrinked_vertices, initial_clusters, released, 'Shrinked Vertices'))
+    visualizations.append(visualize(
+        sub_clusters + [released], 'Subclusters', contains_noise=True))
 
     # merge subclusters
-    print('- Merge subclusters')
+    # print('- Merge subclusters')
     clusters, average_distances = \
         merge_clusters(sub_clusters, sc_average_distances)
 
     clusters, contains_noise = \
         add_released(clusters, average_distances, released)
 
-    visualize(clusters, 'KBCHT Clustering', 'kbcht_clustering.png', 
-              contains_noise=contains_noise, vis_mode=vis_mode)
+    visualizations.append(
+        visualize(clusters, 'KBCHT Clustering', contains_noise=contains_noise))
 
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
@@ -607,85 +556,50 @@ def kbcht(data, k=10, shrinking_threshold=2, vis_mode='no'):
 
 ############# entry points for the clustering algorithms framework ############
 
-def einfaches_clustering(data, k=10, shrinking_threshold=2):
-    """Cluster data with KBCHT.
+class KBCHT(BaseEstimator, ClusterMixin):
+    """KBCHT clustering algorithm.
 
-    Arguments:
-    data                -- the input data without class labels
-    k                   -- number of clusters for the initial K-Means algorithm 
-                           (NOTE: This does not necessarily represent the final 
-                           number of clusters)
-    shrinking_threshold -- threshold factor defining how long to continue 
-                           shrinking with respect to the average edge length.
-                           Must be > 0.
+    Kmeans-Based Convex Hull Triangulation Clustering Algorithm.
 
+    Parameters
+    ----------
+    k : int, optional
+        number of clusters for the initial K-Means algorithm
+        NOTE: This does not necessarily represent the final number of clusters.
+
+    shrinking_threshold : int, optional
+        threshold factor defining how long to continue shrinking with respect
+        to the average edge length. Must be > 0.
+
+    Attributes
+    ----------
+    labels_ : array, shape = [n_samples]
+        Labels of each point.
+
+    visualizations : array, shape = [4]
+        Matplotlib figures of the cluster assignments for each step of the
+        algorithm.
+
+
+    References
+    ----------
+    Abubaker, M. B., & Hamad, H. M. (2012). "K-means-based convex hull
+    triangulation clustering algorithm". Research Notes in Information Science,
+    9(1), 19-29. http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
     """
-    list_of_labels = kbcht(data, k, shrinking_threshold, vis_mode='no')
-    return list_of_labels
 
+    def __init__(self, k=10, shrinking_threshold=2):
+        self.k = k
+        self.shrinking_threshold = shrinking_threshold
 
-def tolles_clustering_mit_visualisierung(data, k=10, shrinking_threshold=2):
-    """Cluster data with KBCHT, including visualizations.
+    def fit(self, X, y=None):
+        """Compute KBCHT clustering.
 
-    Arguments:
-    data                -- the input data without class labels
-    k                   -- number of clusters for the initial K-Means algorithm 
-                           (NOTE: This does not necessarily represent the final 
-                           number of clusters)
-    shrinking_threshold -- threshold factor defining how long to continue 
-                           shrinking with respect to the average edge length.
-                           Must be > 0.
-
-    """
-    list_of_labels = kbcht(data, k, shrinking_threshold, vis_mode='save')
-    list_of_image_filenames = ["kmeans_clustering.png",
-                               "shrinked_vertices.png",
-                               "subclusters.png",
-                               "kbcht_clustering.png"]
-
-    return list_of_labels, list_of_image_filenames
-
-
-#################### entry point for command line execution ###################
-
-if __name__ == "__main__":
-    '''
-    Usage: python3 clustering.py [K] [FILE]
-               K    - Number of clusters for k-means
-               FILE - Input file
-    '''
-    l = len(sys.argv)
-    if l == 1:
-        k = 2
-        file = 'data/c_Moons1.arff'
-    elif l == 2:
-        try:
-            k = int(sys.argv[1])
-            file = 'data/c_Moons1.arff'
-        except ValueError:
-            k = 2
-            file = sys.argv[1]
-    else:
-        try:
-            k = int(sys.argv[1])
-            file = sys.argv[2]
-        except ValueError:
-            print('Usage: python3 clustering.py [K] [FILE]\n',
-                  '           K    - Number of clusters for k-means\n',
-                  '           FILE - Input file')
-            sys.exit(0)
-
-    print('Load data')
-    data, labels_true = load_data(file)
-    clusters_true = create_clusters(data, labels_true)
-    visualize(clusters_true, 'True Classes', vis_mode='show')
-
-    print('Perform KBCHT algorithm')
-    labels_pred = kbcht(data, k, 2, vis_mode='show')
-    e = evaluate(labels_true, labels_pred)
-    print('Score: {}'.format(e))
-
-    print('Done')
-    # wait for plots to be closed
-    plt.show()
-
+        Parameters
+        ----------
+        X : array-like or sparse matrix, shape=(n_samples, n_features)
+            Training instances to cluster.
+        """
+        self.labels_, self.visualizations = \
+            kbcht(X, self.k, self.shrinking_threshold)
+        return self

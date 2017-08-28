@@ -521,6 +521,10 @@ def kbcht(data, k=10, shrinking_threshold=2):
     -------
     assignments : list, shape (nsamples,)
         List of cluster indices for the training instances.
+    
+    visualizations : array, shape (4,)
+        Matplotlib figures of the cluster assignments for each step of the
+        algorithm.
     """
     if k < 0 or shrinking_threshold < 0:
         print('Invalid parameters! Aborting.')
@@ -559,7 +563,7 @@ def kbcht(data, k=10, shrinking_threshold=2):
     # recreate cluster assignments for points in original data set
     assignments = create_assignments(data, clusters)
 
-    return assignments
+    return assignments, visualizations
 
 
 ############# entry points for the clustering algorithms framework ############

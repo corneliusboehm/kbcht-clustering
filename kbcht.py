@@ -438,7 +438,7 @@ def merge_clusters(sub_clusters, sc_average_distances):
     nsc = len(sub_clusters)
 
     if nsc == 0:
-        return []
+        return [], []
 
     # calculate minimal distances between all subclusters
     sc_dists = np.zeros([nsc, nsc])

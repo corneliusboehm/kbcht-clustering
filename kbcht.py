@@ -504,14 +504,23 @@ def add_released(clusters, average_distances, released):
 def kbcht(data, k=10, shrinking_threshold=2):
     """Perform the KBCHT algorithm.
 
-    Arguments:
-    data                -- the input data without class labels
-    k                   -- number of clusters for the initial K-Means algorithm
-                           (NOTE: This does not necessarily represent the final
-                           number of clusters)
-    shrinking_threshold -- threshold factor defining how long to continue
-                           shrinking with respect to the average edge length.
-                           Must be > 0.
+    Parameters
+    -----------
+    data : array-like or sparse matrix, shape (n_samples, n_features)
+        Training instances to cluster.
+    
+    k : int, optional, default: 10
+        Number of clusters for the initial K-Means algorithm.
+        NOTE: This does not necessarily represent the final number of clusters.
+    
+    shrinking_threshold : int, optional, default: 2
+        Threshold factor defining how long to continue shrinking with respect
+        to the average edge length. Must be > 0.
+    
+    Returns
+    -------
+    assignments : list, shape (nsamples,)
+        List of cluster indices for the training instances.
     """
     if k < 0 or shrinking_threshold < 0:
         print('Invalid parameters! Aborting.')
@@ -562,20 +571,20 @@ class KBCHT(BaseEstimator, ClusterMixin):
 
     Parameters
     ----------
-    k : int, optional
-        number of clusters for the initial K-Means algorithm
+    k : int, optional, default: 10
+        Number of clusters for the initial K-Means algorithm.
         NOTE: This does not necessarily represent the final number of clusters.
 
-    shrinking_threshold : int, optional
-        threshold factor defining how long to continue shrinking with respect
+    shrinking_threshold : int, optional, default: 2
+        Threshold factor defining how long to continue shrinking with respect
         to the average edge length. Must be > 0.
 
     Attributes
     ----------
-    labels_ : array, shape = [n_samples]
+    labels_ : array, shape (n_samples,)
         Labels of each point.
 
-    visualizations : array, shape = [4]
+    visualizations : array, shape (4,)
         Matplotlib figures of the cluster assignments for each step of the
         algorithm.
 
@@ -596,9 +605,11 @@ class KBCHT(BaseEstimator, ClusterMixin):
 
         Parameters
         ----------
-        X : array-like or sparse matrix, shape=(n_samples, n_features)
+        X : array-like or sparse matrix, shape (n_samples, n_features)
             Training instances to cluster.
+        TODO: Can we really handle sparse matrices?
         """
         self.labels_, self.visualizations = \
             kbcht(X, self.k, self.shrinking_threshold)
         return self
+

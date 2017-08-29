@@ -33,7 +33,7 @@ def create_assignments(orig_data, clusters):
                 assignments.append(idx)
                 break
 
-    return assignments
+    return np.array(assignments)
 
 
 def visualize(data, title='', contains_noise=False):
@@ -597,6 +597,16 @@ class KBCHT(BaseEstimator, ClusterMixin):
         Matplotlib figures of the cluster assignments for each step of the
         algorithm.
 
+    Examples
+    ----------
+
+    >>> import numpy as np
+    >>> from kbcht import *
+    >>> X = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
+    ...               [5, 5], [5, 6], [6, 5], [6, 6]])
+    >>> kbcht = KBCHT(k=2).fit(X)
+    >>> kbcht.labels_
+    array([1, 1, 1, 1, 0, 0, 0, 0])
 
     References
     ----------
@@ -620,6 +630,3 @@ class KBCHT(BaseEstimator, ClusterMixin):
         self.labels_, self.visualizations = \
             kbcht(X, self.k, self.shrinking_threshold)
         return self
-
-# TODO: Add an example?
-

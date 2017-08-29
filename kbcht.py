@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.path import Path

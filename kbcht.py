@@ -534,7 +534,8 @@ def kbcht(data, k=10, shrinking_threshold=2):
         raise ValueError('shrinking_threshold={} must be > 0'
                          .format(shrinking_threshold))
     
-    # TODO: Check, if the given data is 2-dimensional
+    if data.shape[1] != 2:
+        raise ValueError('KBCHT only works on two-dimensional data')
 
     # perform k-Means for finding inital clusters
     km = kmeans(data, k)

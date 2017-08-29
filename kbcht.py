@@ -507,7 +507,7 @@ def kbcht(data, k=10, shrinking_threshold=2):
 
     Parameters
     -----------
-    data : array-like or sparse matrix, shape (n_samples, n_features)
+    data : array-like, shape (n_samples, n_features)
         Training instances to cluster.
     
     k : int, optional, default: 10
@@ -615,9 +615,8 @@ class KBCHT(BaseEstimator, ClusterMixin):
 
         Parameters
         ----------
-        X : array-like or sparse matrix, shape (n_samples, n_features)
+        X : array-like, shape (n_samples, n_features)
             Training instances to cluster.
-        TODO: Can we really handle sparse matrices?
         """
         self.labels_, self.visualizations = \
             kbcht(X, self.k, self.shrinking_threshold)

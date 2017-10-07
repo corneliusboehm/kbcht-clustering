@@ -515,7 +515,17 @@ def kbcht(data, k=10, shrinking_threshold=2):
     shrinking_threshold : int, optional, default: 2
         Threshold factor defining how long to continue shrinking with respect
         to the average edge length. Must be > 0.
-    
+        Shrinking is continued as long as an edge between two hull vertices can 
+        be found that fulfills the following condition: 
+                hull_edge_length >= shrinking_threshold * avg_edge_length
+        hull_edge_length is the length of the edge between the two hull vertices
+        and avg_edge_length is the average edge length of the Delaunay 
+        triangulated cluster that is surrounded by the hull vertices.
+        Smaller values for the shrinking threshold will result in finer clusters
+        with more points marked as outliers, larger values will result in 
+        smoother borders and less outliers. The algorithm will also converge 
+        faster for larger shrinking thresholds.
+
     Returns
     -------
     assignments : list, shape (nsamples,)
@@ -524,6 +534,17 @@ def kbcht(data, k=10, shrinking_threshold=2):
     visualizations : array, shape (4,)
         Matplotlib figures of the cluster assignments for each step of the
         algorithm.
+
+    Example
+    ----------
+
+    >>> import numpy as np
+    >>> from kbcht import *
+    >>> X = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
+    ...               [5, 5], [5, 6], [6, 5], [6, 6]])
+    >>> labels, _ = kbcht(X, k=2)
+    >>> labels
+    array([1, 1, 1, 1, 0, 0, 0, 0])
     """
     if k <= 0:
         raise ValueError('k={} must be > 0'.format(k))
@@ -595,7 +616,6 @@ class KBCHT(BaseEstimator, ClusterMixin):
         with more points marked as outliers, larger values will result in 
         smoother borders and less outliers. The algorithm will also converge 
         faster for larger shrinking thresholds.
-        
 
     Attributes
     ----------
@@ -606,7 +626,7 @@ class KBCHT(BaseEstimator, ClusterMixin):
         Matplotlib figures of the cluster assignments for each step of the
         algorithm.
 
-    Examples
+    Example
     ----------
 
     >>> import numpy as np

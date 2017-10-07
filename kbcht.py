@@ -117,7 +117,6 @@ def convex_hull(initial_cluster):
     if len(initial_cluster) < 3:
         return initial_cluster, np.zeros((0, 2))
     
-    # TODO: Can there still be an error?
     ch = ConvexHull(initial_cluster)
     hull_indices = ch.vertices
     inside_indices = list(set(range(len(initial_cluster))) -
@@ -396,16 +395,16 @@ def find_sub_clusters(shrinked_vertex, initial_cluster):
 
 
 def parallel_step(initial_cluster, shrinking_threshold):
-    # print('  - Find convex hull')
+    # find convex hull
     initial_vertex, inside = convex_hull(initial_cluster)
 
-    # print('  - Shrink vertex')
+    # shrink vertex
     shrinked_vertex, released_hulls = \
         shrink_vertex(initial_vertex, inside, shrinking_threshold)
     shrinked_vertex, released = release_vertices(shrinked_vertex)
     released = np.append(released, released_hulls, axis=0)
 
-    # print('  - Find subclusters')
+    # find subclusters
     sub_clusters, sc_average_distances, sc_released = \
         find_sub_clusters(shrinked_vertex, initial_cluster)
     released = np.append(released, sc_released, axis=0)
@@ -414,7 +413,8 @@ def parallel_step(initial_cluster, shrinking_threshold):
 
 
 def get_all_subclusters(initial_clusters, shrinking_threshold):
-    sc_tuples = [parallel_step(ic, shrinking_threshold) for ic in initial_clusters]
+    sc_tuples = [parallel_step(ic, shrinking_threshold) 
+                 for ic in initial_clusters]
 
     # reorganize outputs into separate flattened lists
     sub_clusters = [sub_cluster for t in sc_tuples for sub_cluster in t[0]]
@@ -545,7 +545,6 @@ def kbcht(data, k=10, shrinking_threshold=2):
     visualizations.append(visualize(initial_clusters, 'K-Means Clustering'))
 
     # get subclusters from convex hulls and shrinking
-    # print('- Get all subclusters')
     sub_clusters, sc_average_distances, released, shrinked_vertices = \
         get_all_subclusters(initial_clusters, shrinking_threshold)
 
@@ -555,7 +554,6 @@ def kbcht(data, k=10, shrinking_threshold=2):
         sub_clusters + [released], 'Subclusters', contains_noise=True))
 
     # merge subclusters
-    # print('- Merge subclusters')
     clusters, average_distances = \
         merge_clusters(sub_clusters, sc_average_distances)
 
@@ -630,3 +628,4 @@ class KBCHT(BaseEstimator, ClusterMixin):
         self.labels_, self.visualizations = \
             kbcht(X, self.k, self.shrinking_threshold)
         return self
+

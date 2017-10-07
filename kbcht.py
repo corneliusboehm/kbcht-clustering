@@ -585,6 +585,17 @@ class KBCHT(BaseEstimator, ClusterMixin):
     shrinking_threshold : int, optional, default: 2
         Threshold factor defining how long to continue shrinking with respect
         to the average edge length. Must be > 0.
+        Shrinking is continued as long as an edge between two hull vertices can 
+        be found that fulfills the following condition: 
+                hull_edge_length >= shrinking_threshold * avg_edge_length
+        hull_edge_length is the length of the edge between the two hull vertices
+        and avg_edge_length is the average edge length of the Delaunay 
+        triangulated cluster that is surrounded by the hull vertices.
+        Smaller values for the shrinking threshold will result in finer clusters
+        with more points marked as outliers, larger values will result in 
+        smoother borders and less outliers. The algorithm will also converge 
+        faster for larger shrinking thresholds.
+        
 
     Attributes
     ----------

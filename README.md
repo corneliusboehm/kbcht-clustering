@@ -7,14 +7,16 @@ Python implementation of the KBCHT algorithm [1]. The general algorithm flow may
 
 ## Usage
 
-The implementation follows the scikit-learn [2] style and can be used equivalently to other algorithm of the `sklearn.cluster` module. See example given below.
+The implementation follows the scikit-learn [2] style and can be used equivalently to other algorithms of the `sklearn.cluster` module. See example given below.
 
 The KBCHT algorithm can be also directly executed by calling the `kbcht()` function. See example given below.
 
+In addition to the labels, the implementation also provides visualizations for several stages of the clustering process. See example given below.
+
 ## Examples
 
-using sklearn style
-```
+Using sklearn style
+```python
 >>> import numpy as np
 >>> from kbcht import *
 >>> X = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
@@ -23,8 +25,8 @@ using sklearn style
 >>> kbcht.labels_
 array([1, 1, 1, 1, 0, 0, 0, 0])
 ```
-directly calling function
-```
+Directly calling function
+```python
 >>> import numpy as np
 >>> from kbcht import *
 >>> X = np.array([[0, 0], [0, 1], [1, 0], [1, 1],
@@ -33,6 +35,17 @@ directly calling function
 >>> labels
 array([1, 1, 1, 1, 0, 0, 0, 0])
 ```
+Visualizations for the _Moons_ data set
+```python
+>>> from sklearn.datasets import make_moons
+>>> from kbcht import *
+>>> X, _ = make_moons(3000, True, 0.05, 1)
+>>> kbcht = KBCHT(k=10, shrinking_threshold=4).fit(X)
+>>> for v in kbcht.visualizations:
+...     v.show()
+```
+<img src="pics/kmeans_clustering.png" width="300"> <img src="pics/shrinked_vertices.png" width="300">
+<img src="pics/subclusters.png" width="300"> <img src="pics/kbcht_clustering.png" width="300">
 
 ---
 [1]: Abubaker, M. B., & Hamad, H. M. (2012). "K-means-based convex hull     triangulation clustering algorithm". Research Notes in Information Science, 9(1), 19-29. http://www.globalcis.org/rnis/ppl/RNIS105PPL.pdf
